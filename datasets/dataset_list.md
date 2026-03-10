@@ -1,0 +1,2 @@
+- CTIKG : https://github.com/ctikgresearch/GTIKGResearch/blob/main/triple%20extraction%20benchmark%20and%20ctikg%20results.csv
+- CTINexus : https://github.com/peng-gao-lab/ctinexus/tree/main/ctinexus/data

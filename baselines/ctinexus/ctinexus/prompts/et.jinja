@@ -1,0 +1,21 @@
+Classify the subject, object, and relation of the given triplets into the CTINexus ontology.
+Your response MUST be in JSON format.
+
+VALID ENTITY CLASSES (for Subject/Object):
+Account, Credential, Tool, Attacker, Event, Exploit Target, Indicator:File, Indicator:IP, Indicator:URL, Indicator:Domain, Location, Malware, Organization, Infrastructure, Vulnerability
+
+VALID RELATION PROPERTIES (for Relation):
+Targets, Uses, Attributed-To, Indicates, Exploits, Variant-Of, Delivers, Commands
+
+Format your response as a JSON object with a 'tagged_triples' key:
+{"tagged_triples": [
+    {"subject": {"text": "...", "class": "..."}, "relation": {"text": "...", "class": "..."}, "object": {"text": "...", "class": "..."}},
+    ...
+]}
+
+---------------------
+Target Triplets:
+{%- for triple in triples %}
+"triple": {{ triple }}
+"tagged_triple": """insert your answer here"""
+---------------------{%- endfor %}

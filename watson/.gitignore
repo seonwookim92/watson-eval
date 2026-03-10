@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv
+venv/
+ENV/
+.env
+
+# Project specific
+input/*
+!input/.gitkeep
+
+ontology/*
+!ontology/.gitkeep
+
+mcp/*
+!mcp/.gitkeep
+
+# Output files
+*.html
+*.ttl
+*.png
+logs/
+.DS_Store

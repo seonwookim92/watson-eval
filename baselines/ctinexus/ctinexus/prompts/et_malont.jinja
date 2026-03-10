@@ -1,0 +1,21 @@
+Classify the subject, object, and relation of the given triplets into the MALOnt ontology.
+Your response MUST be in JSON format.
+
+VALID ENTITY CLASSES (for Subject/Object):
+Address, Adware, Amplification, Anonymization, Application, AttackPattern, AttackPattern_LargeDescription, AttackPattern_SmallDescription, Backdoor, Bootkit, Bot, Botnet, Browser, Campaign, CommandAndControl, Country, DDoS, DomainName, Downloader, Dropper, Email, Exfiltration, Exploit-kit, File, Filepath, GeneralVirus, Hardware, Hash, HostingMalware, HostingTargetLists, Indicator, Infrastructure, Keylogger, Location, MD5, Malware, MalwareAnalysis, MalwareFamily, Network, OperatingSystem, Organization, Person, Phishing, Port, Protocol, Ransomware, Reconnaissance, Region, RemoteAccessTrojan-RAT, Report, ResourceExploitation, RogueSecuritySoftware, Rootkit, SHA, SHA-1, SHA-256, SSDeep, ScreenCapture, Software, Spyware, Staging, System, ThreatActor, Time, Trojan, URL, Unknown, VirusScanner, Vulnerability, Vulnerability_CVEID, Vulnerability_Desc, Webshell, Wiper, Worm, vHash
+
+VALID RELATION PROPERTIES (for Relation):
+belongsTo, communicatesWith, exploits, has, hasAlias, hasAuthor, hasVulnerability, indicates, targets, uses
+
+Format your response as a JSON object with a 'tagged_triples' key:
+{"tagged_triples": [
+    {"subject": {"text": "...", "class": "..."}, "relation": {"text": "...", "class": "..."}, "object": {"text": "...", "class": "..."}},
+    ...
+]}
+
+---------------------
+Target Triplets:
+{%- for triple in triples %}
+"triple": {{ triple }}
+"tagged_triple": """insert your answer here"""
+---------------------{%- endfor %}

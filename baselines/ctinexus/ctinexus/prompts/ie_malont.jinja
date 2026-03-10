@@ -1,0 +1,20 @@
+As a security analyst, your task is to analyze cyber threat reports and extract information as subject-relation-object triplets.
+Your response MUST be a JSON object with a 'triplets' key.
+
+CRITICAL: Extract entities that fit into the following general categories:
+Malware, Threat Actor, Application, Campaign, System, Organization, Time, Location, Vulnerability, Indicator, Attack Pattern, Report
+
+Format your response as a JSON object with a 'triplets' key:
+{"triplets": [{"subject": "entity_name", "relation": "relationship", "object": "entity_name"}, ...]}
+
+---------------------
+{%- for example in demos %}
+Example {{ loop.index0 + 1 }}:
+'CTI': {{ example[0] }}
+'triplets': {{ example[1] }}
+---------------------{%- endfor %}
+
+Target report:
+"CTI": {{ query }}
+
+"""insert your answer here"""

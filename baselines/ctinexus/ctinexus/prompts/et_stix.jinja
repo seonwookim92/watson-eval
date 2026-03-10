@@ -1,0 +1,21 @@
+Classify the subject, object, and relation of the given triplets into the STIX ontology.
+Your response MUST be in JSON format.
+
+VALID ENTITY CLASSES (for Subject/Object):
+AccountTypeOv, AlternateDataStreamType, ArchiveExt, Artifact, AttackMotivationOv, AttackPattern, AttackResourceLevelOv, AutonomousSystem, Bundle, Campaign, CourseOfAction, Dictionary, Directory, DomainName, EmailAddress, EmailMessage, EmailMimePartType, EncryptionAlgorithmEnum, ExtensionDefinition, ExtensionTypeEnum, ExternalReference, File, GranularMarking, Grouping, GroupingContextOv, HashAlgorithmOv, Hashes, HttpRequestExt, IPv4Address, IPv6Address, IcmpExt, Identity, IdentityClassOv, ImplementationLanguageOv, Incident, Indicator, IndicatorTypeOv, IndustrySectorOv, Infrastructure, InfrastructureTypeOv, IntrusionSet, KillChainPhase, LanguageContent, Location, MACAddress, Malware, MalwareAnalysis, MalwareCapabilitiesOv, MalwareResultOv, MalwareTypeOv, MarkingDefinition, Mutex, NetworkSocketFamilyEnum, NetworkSocketTypeEnum, NetworkTraffic, Note, NtfsExt, ObservedData, Opinion, OpinionEnum, PatternTypeOv, PdfExt, Process, ProcessorArchitectureOv, RasterImageExt, RegionOv, Relationship, Report, ReportTypeOv, Sighting, SocketExt, Software, StatementMarking, StixCategoryObject, StixCyberObservable, StixDatatype, StixDomainObject, StixEnumeration, StixMetaObject, StixObject, StixOpenVocabulary, StixRelationshipObject, TLPMarking, TcpExt, ThreatActor, ThreatActorRoleOv, ThreatActorSophisticationOv, ThreatActorTypeOv, Tool, ToolTypeOv, URL, UnixAccountExt, UserAccount, Vulnerability, WindowsIntegrityLevelEnum, WindowsPeBinaryTypeOv, WindowsPeOptionalHeaderType, WindowsPeSectionType, WindowsPebinaryExt, WindowsProcessExt, WindowsRegistryDatatypeEnum, WindowsRegistryKey, WindowsRegistryValueType, WindowsServiceExt, WindowsServiceStartTypeEnum, WindowsServiceStatusEnum, WindowsServiceTypeEnum, X509Certificate, X509v3ExtensionsType
+
+VALID RELATION PROPERTIES (for Relation):
+additional_header_fields, alternate_data_streams, analysis-of, analysis_sco_refs, attributed-to, authored-by, based-on, bcc_refs, beacons-to, belongs_to_ref, belongs_to_refs, body_multipart, body_raw_ref, categorizedBy, cc_refs, characterizes, child_refs, communicates-with, compromises, consists-of, contains_refs, content_ref, contents, controls, created_by_ref, creator_user_ref, definition, delivers, document_info_dict, downloads, drops, dst_payload_ref, dst_ref, dynamic-analysis-of, encapsulated_by_ref, encapsulates_refs, environment_variables, exfiltrate-to, exif_tags, exploits, extensions, external_references, from_ref, granular_markings, has, hashes, host_vm_ref, hosts, image_ref, impersonates, indicates, installed_software_refs, investigates, ipfix, located-at, marking_ref, message_body_data_ref, mitigates, object_marking_refs, object_ref, object_refs, objects, observed_data_refs, opened_connection_refs, operating_system_ref, operating_system_refs, optional_header, originates-from, owns, parent_directory_ref, parent_ref, raw_email_ref, resolves_to_refs, sample_ref, sample_refs, sections, sender_ref, service_dll_refs, sighting_of_ref, source_ref, src_payload_ref, src_ref, startup_info, static-analysis-of, target_ref, targets, to_refs, uses, values, variant-of, where_sighted_refs, x509_v3_extensions
+
+Format your response as a JSON object with a 'tagged_triples' key:
+{"tagged_triples": [
+    {"subject": {"text": "...", "class": "..."}, "relation": {"text": "...", "class": "..."}, "object": {"text": "...", "class": "..."}},
+    ...
+]}
+
+---------------------
+Target Triplets:
+{%- for triple in triples %}
+"triple": {{ triple }}
+"tagged_triple": """insert your answer here"""
+---------------------{%- endfor %}

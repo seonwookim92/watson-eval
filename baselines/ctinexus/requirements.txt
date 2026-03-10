@@ -1,0 +1,14 @@
+gradio>=5.0.0,<6.0.0
+hydra-core
+jinja2
+litellm
+networkx
+nltk
+omegaconf
+pandas
+pyvis
+python-dotenv
+scikit-learn
+scipy
+tld>=0.13,<1
+trafilatura==2.0.0

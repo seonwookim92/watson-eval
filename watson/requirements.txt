@@ -1,0 +1,15 @@
+langchain-openai
+langchain-ollama
+langchain-google-genai
+langchain-anthropic
+langchain-core
+langchain-community
+langgraph
+mcp
+python-dotenv
+rdflib
+pyvis
+networkx
+numpy
+pandas
+tqdm

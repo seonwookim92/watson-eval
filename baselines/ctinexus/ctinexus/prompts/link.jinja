@@ -1,0 +1,18 @@
+Predict the relationship between the following entities.
+Your response MUST be in JSON format.
+Select from: Targets, Uses, Attributed-To, Indicates, Exploits, Variant-Of, Delivers, Commands
+
+Example: {"relation": "Targets"}
+
+---------------------
+{%- for example in demos %}
+Example { loop.index0 + 1 }:
+"entity_1": { example[0] }
+"entity_2": { example[1] }
+"relation": { example[2] }
+---------------------{%- endfor %}
+
+"entity_1": { entity_1 }
+"entity_2": { entity_2 }
+
+"""insert your answer here"""
