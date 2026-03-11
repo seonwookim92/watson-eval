@@ -24,7 +24,7 @@ def get_llm(provider=None):
         return ChatAnthropic(model=cfg["model"], anthropic_api_key=cfg["api_key"])
     else:
         from langchain_ollama import ChatOllama
-        return ChatOllama(model=cfg["model"], base_url=cfg["base_url"])
+        return ChatOllama(model=cfg["model"], base_url=cfg["base_url"], num_ctx=config.OLLAMA_NUM_CTX)
 
 
 async def paraphrasing_node(state: GraphState) -> GraphState:

@@ -1083,7 +1083,7 @@ class LLMCaller:
 					model=f"ollama/{model_id}",
 					messages=[{"role": "user", "content": improved_prompt}],
 					max_tokens=self.max_tokens,
-					temperature=0.8,
+					temperature=0.1,
 					default_api_base=ollama_base_url,
 				)
 			else:

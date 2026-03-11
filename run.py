@@ -41,6 +41,30 @@ import os
 from pathlib import Path
 from datetime import datetime
 
+_ENV_FILE = Path(__file__).parent.resolve() / ".env"
+try:
+    from dotenv import dotenv_values
+    _env = dotenv_values(_ENV_FILE) if _ENV_FILE.exists() else {}
+except Exception:
+    _env = {}
+
+def _llm_tag() -> str:
+    """Return a short LLM identifier from .env, e.g. 'ollama/qwen3.5:35b'."""
+    def _get(key, default=""):
+        return _env.get(key) or os.getenv(key, default)
+    provider = _get("LLM_PROVIDER", "openai")
+    if provider == "openai":
+        model = _get("OPENAI_MODEL", "gpt-4o")
+    elif provider == "ollama":
+        model = _get("OLLAMA_MODEL", "llama3.1:8b")
+    elif provider == "gemini":
+        model = _get("GOOGLE_MODEL", "gemini-1.5-pro")
+    elif provider in ("claude", "anthropic"):
+        model = _get("ANTHROPIC_MODEL", "claude-3-5-sonnet")
+    else:
+        model = "unknown"
+    return f"{provider}/{model}"
+
 ROOT     = Path(__file__).parent.resolve()
 OUTPUTS  = ROOT / "outputs"
 DATASETS = ROOT / "datasets" / "ctinexus" / "annotation"
@@ -133,10 +157,16 @@ def run_job(model: str, schema: str, limit: int | None, skip_existing: bool, dry
     python = resolve_python(cfg["venv"])
     cmd    = cfg["cmd"](python, schema, limit)
 
+    started_at = datetime.now()
+    ts = started_at.strftime("%y%m%d%H%M")
+    llm = _llm_tag()
+
     tag = f"{model}/{schema}" + (f" limit={limit}" if limit else "")
     print(f"\n{'─'*60}")
     print(f"  model   : {model}")
     print(f"  schema  : {schema}")
+    print(f"  llm     : {llm}")
+    print(f"  started : {ts}")
     print(f"  output  : {out_file.name}")
     if limit:
         print(f"  limit   : {limit} samples")
@@ -147,16 +177,15 @@ def run_job(model: str, schema: str, limit: int | None, skip_existing: bool, dry
         print("  [dry-run] skipping execution")
         return True
 
-    t0 = datetime.now()
     result = subprocess.run(
         cmd,
         cwd=str(cfg["dir"]),
         env={**os.environ},   # inherit full env (API keys etc.)
     )
-    elapsed = (datetime.now() - t0).seconds
+    elapsed = (datetime.now() - started_at).seconds
 
     if result.returncode == 0:
-        print(f"  [OK] {tag} — {elapsed}s → {out_file.name}")
+        print(f"  [OK] {tag} | {llm} | {ts} | {elapsed}s → {out_file.name}")
         return True
     else:
         print(f"  [FAIL] {tag} — exit code {result.returncode}")

@@ -131,7 +131,14 @@ async def main() -> None:
     eval_provider = args.eval_provider or config.EVAL_LLM_PROVIDER
     eval_model    = args.eval_model    or config.EVAL_LLM_MODEL
     eval_base_url = args.eval_base_url or config.EVAL_LLM_BASE_URL
-    eval_api_key  = config.OPENAI_API_KEY
+    if eval_provider == "openai":
+        eval_api_key = config.OPENAI_API_KEY
+    elif eval_provider in ("claude", "anthropic"):
+        eval_api_key = config.ANTHROPIC_API_KEY
+    elif eval_provider == "gemini":
+        eval_api_key = config.GOOGLE_API_KEY
+    else:
+        eval_api_key = None
 
     matcher = build_matcher(
         mode=args.match_mode,
