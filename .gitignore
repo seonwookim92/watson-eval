@@ -63,6 +63,10 @@ htmlcov/
 # Keep outputs/ tracked (comparison results)
 # Keep ontology/ tracked (schema files)
 # Keep datasets/ tracked (benchmark annotations)
+outputs/watson_uco_results.json
+outputs/watson_stix_results.json
+outputs/watson_malont_results.json
+ontology/*/.embedding_cache.pkl
 
 # Ignore large model weights or downloaded assets inside baselines
 baselines/*/models/

@@ -9,8 +9,14 @@ __pycache__/
 
 run_*/
 zvec_store/
+TextItDown/intermediate/
+*.txt
+eval_test_runs_with_llm.json
+eval_test_runs_with_llm_cache.json
+ontology.embedding_cache.pkl
+universal-ontology-mcp.backup_20260313_134327/
+TextItDown/glm-ocr/examples/
 
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
-
