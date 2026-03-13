@@ -150,7 +150,19 @@ class EmbeddingMatcher:
 def _build_llm(provider: str, model: str, base_url: str = None):
     if provider == "openai":
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model=model, api_key=os.getenv("OPENAI_API_KEY"), temperature=0)
+        resolved_base_url = (
+            base_url
+            or os.getenv("EVAL_LLM_BASE_URL")
+            or os.getenv("OPENAI_BASE_URL")
+        )
+        kwargs = {
+            "model": model,
+            "api_key": os.getenv("OPENAI_API_KEY", "dummy"),
+            "temperature": 0,
+        }
+        if resolved_base_url:
+            kwargs["base_url"] = resolved_base_url
+        return ChatOpenAI(**kwargs)
     elif provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
@@ -592,7 +604,8 @@ async def main() -> None:
     parser.add_argument("--llm-provider", default=None,
                         help="LLM judge provider: openai|gemini|claude|ollama")
     parser.add_argument("--llm-model",    default=None, help="LLM model name")
-    parser.add_argument("--llm-base-url", default=None, help="Ollama base URL")
+    parser.add_argument("--llm-base-url", default=None,
+                        help="Custom LLM base URL for OpenAI-compatible/Ollama endpoints")
     parser.add_argument("--hitl",         action="store_true",
                         help="Human-in-the-Loop interactive review")
     parser.add_argument("--limit",        type=int, default=None,
@@ -622,7 +635,7 @@ async def main() -> None:
     gt_map = _load_gt_with_implicit(args.ground_truth)
 
     emb = EmbeddingMatcher(threshold=args.threshold)
-    llm = _build_llm(llm_provider, llm_model, args.llm_base_url)
+    llm = _build_llm(llm_provider, llm_model, llm_base_url)
 
     if args.limit:
         extracted = extracted[:args.limit]

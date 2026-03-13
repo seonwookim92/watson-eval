@@ -1,0 +1,205 @@
+# GLM-OCR Configuration
+#
+# This file contains all configuration options for the GLM-OCR SDK.
+# Default values are shown. Uncomment and modify as needed.
+
+# Server settings (for glmocr.server)
+server:
+  host: "0.0.0.0"
+  port: 5002
+  debug: false
+
+# Logging settings
+logging:
+  # Log level: DEBUG, INFO, WARNING, ERROR
+  # DEBUG enables profiling output with timing information
+  level: DEBUG
+  # format: "[%(levelname)s] %(name)s: %(message)s"  # custom format (optional)
+
+# Pipeline settings
+pipeline:
+  maas:
+    enabled: false
+    api_url: https://open.bigmodel.cn/api/paas/v4/layout_parsing
+    model: glm-ocr
+    api_key: null
+    verify_ssl: true
+    connect_timeout: 30
+    request_timeout: 300
+    retry_max_attempts: 2
+    retry_backoff_base_seconds: 0.5
+    retry_backoff_max_seconds: 8.0
+    retry_jitter_ratio: 0.2
+    retry_status_codes: [429, 500, 502, 503, 504]
+    connection_pool_size: 16
+
+  ocr_api:
+    api_host: 192.168.100.2  # custom endpoint
+    api_port: 8080
+    model: zai-org/GLM-OCR
+    api_scheme: null
+    api_path: /v1/chat/completions
+    api_url: null
+    api_mode: openai
+    api_key: null
+    headers: {}
+    verify_ssl: false
+    connect_timeout: 30
+    request_timeout: 120
+    retry_max_attempts: 2
+    retry_backoff_base_seconds: 0.5
+    retry_backoff_max_seconds: 8.0
+    retry_jitter_ratio: 0.2
+    retry_status_codes: [429, 500, 502, 503, 504]
+    connection_pool_size: 128
+
+  max_workers: 32
+  page_maxsize: 100
+  region_maxsize: 800
+
+  page_loader:
+    max_tokens: 4096
+    temperature: 0.8
+    top_p: 0.9
+    top_k: 50
+    repetition_penalty: 1.1
+    t_patch_size: 2
+    patch_expand_factor: 1
+    image_expect_length: 6144
+    image_format: JPEG
+    min_pixels: 12544
+    max_pixels: 71372800
+    default_prompt: >
+      Recognize the text in the image and output in Markdown format without HTML.
+      Preserve the original layout (headings/paragraphs/tables/formulas).
+      Do not fabricate content that does not exist in the image.
+    task_prompt_mapping:
+      text: "Text Recognition:"
+      table: "Table Recognition:"
+      formula: "Formula Recognition:"
+    pdf_dpi: 200
+    pdf_max_pages: null
+    pdf_verbose: false
+
+  result_formatter:
+    filter_nested: true
+    min_overlap_ratio: 0.8
+    output_format: both
+    label_visualization_mapping:
+      table:
+        - table
+      formula:
+        - display_formula
+        - inline_formula
+      image:
+        - chart
+        - image
+      text:
+        - abstract
+        - algorithm
+        - content
+        - doc_title
+        - figure_title
+        - paragraph_title
+        - reference_content
+        - text
+        - vertical_text
+        - vision_footnote
+        - seal
+        - formula_number
+
+  enable_layout: true
+
+  layout:
+    model_dir: PaddlePaddle/PP-DocLayoutV3_safetensors
+    threshold: 0.3
+    batch_size: 1
+    workers: 1
+    cuda_visible_devices: "0"
+    layout_nms: true
+    layout_unclip_ratio:
+      - 1.0
+      - 1.0
+    layout_merge_bboxes_mode:
+      0: large
+      1: large
+      2: large
+      3: large
+      4: large
+      5: large
+      6: large
+      7: large
+      8: large
+      9: large
+      10: large
+      11: large
+      12: large
+      13: large
+      14: large
+      15: large
+      16: large
+      17: large
+      18: small
+      19: large
+      20: large
+      21: large
+      22: large
+      23: large
+      24: large
+    label_task_mapping:
+      text:
+        - abstract
+        - algorithm
+        - content
+        - doc_title
+        - figure_title
+        - paragraph_title
+        - reference_content
+        - text
+        - vertical_text
+        - vision_footnote
+        - seal
+        - formula_number
+      table:
+        - table
+      formula:
+        - display_formula
+        - inline_formula
+      skip:
+        - chart
+        - image
+      abandon:
+        - header
+        - footer
+        - number
+        - footnote
+        - aside_text
+        - reference
+        - footer_image
+        - header_image
+    id2label:
+      0: abstract
+      1: algorithm
+      2: aside_text
+      3: chart
+      4: content
+      5: display_formula
+      6: doc_title
+      7: figure_title
+      8: footer
+      9: footer_image
+      10: footnote
+      11: formula_number
+      12: header
+      13: header_image
+      14: image
+      15: inline_formula
+      16: number
+      17: paragraph_title
+      18: reference
+      19: reference_content
+      20: seal
+      21: table
+      22: text
+      23: vertical_text
+      24: vision_footnote

@@ -1,3 +1,4 @@
+import json
 import os
 from dotenv import load_dotenv
 
@@ -7,13 +8,36 @@ ROOT_ENV = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "
 load_dotenv(dotenv_path=ROOT_ENV, override=True)
 
 _ONTOLOGY_BASE = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", "ontology"))
+_ONTOLOGY_EXTRACTOR_CONFIG = os.path.abspath(
+    os.path.join(os.path.dirname(__file__), "..", "..", "..", "OntologyExtractor", "config.json")
+)
+
+
+def _load_ontology_extractor_llm_defaults():
+    try:
+        with open(_ONTOLOGY_EXTRACTOR_CONFIG, encoding="utf-8") as f:
+            payload = json.load(f)
+        llm_cfg = payload.get("llm", {})
+        return {
+            "base_url": llm_cfg.get("base_url"),
+            "model": llm_cfg.get("model"),
+        }
+    except Exception:
+        return {
+            "base_url": None,
+            "model": None,
+        }
+
+
+_EXTRACTOR_LLM_DEFAULTS = _load_ontology_extractor_llm_defaults()
 
 
 class Config:
     # LLM Settings
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-    OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+    OPENAI_MODEL = os.getenv("OPENAI_MODEL", _EXTRACTOR_LLM_DEFAULTS["model"] or "gpt-4o")
+    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", _EXTRACTOR_LLM_DEFAULTS["base_url"] or "")
 
     # Gemini (Google) Settings
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -32,7 +56,7 @@ class Config:
     def get_provider_config(cls, provider=None):
         p = provider or cls.LLM_PROVIDER
         if p == "openai":
-            return {"model": cls.OPENAI_MODEL, "api_key": cls.OPENAI_API_KEY}
+            return {"model": cls.OPENAI_MODEL, "api_key": cls.OPENAI_API_KEY, "base_url": cls.OPENAI_BASE_URL}
         elif p == "gemini":
             return {"model": cls.GOOGLE_MODEL, "api_key": cls.GOOGLE_API_KEY}
         elif p == "claude":
@@ -43,7 +67,14 @@ class Config:
 
     # MCP Settings
     MCP_SERVER_PATH = os.path.abspath(
-        os.path.join(os.path.dirname(__file__), "..", "mcp", "universal-ontology-mcp", "main.py")
+        os.path.join(
+            os.path.dirname(__file__),
+            "..",
+            "..",
+            "OntologyExtractor",
+            "universal-ontology-mcp",
+            "main.py",
+        )
     )
 
     # Ontology schema directories
@@ -60,9 +91,9 @@ class Config:
     DEFAULT_CHUNK_OVERLAP = 400
 
     # Evaluation LLM (used by LLMMatcher; can be separate from prediction LLM)
-    EVAL_LLM_PROVIDER = os.getenv("EVAL_LLM_PROVIDER", "ollama")
-    EVAL_LLM_MODEL    = os.getenv("EVAL_LLM_MODEL",    "llama3.1:8b")
-    EVAL_LLM_BASE_URL = os.getenv("EVAL_LLM_BASE_URL", "http://localhost:11434")
+    EVAL_LLM_PROVIDER = os.getenv("EVAL_LLM_PROVIDER", "openai")
+    EVAL_LLM_MODEL    = os.getenv("EVAL_LLM_MODEL", _EXTRACTOR_LLM_DEFAULTS["model"] or "gpt-4o")
+    EVAL_LLM_BASE_URL = os.getenv("EVAL_LLM_BASE_URL", _EXTRACTOR_LLM_DEFAULTS["base_url"] or "")
 
     @classmethod
     def set_schema(cls, schema: str):

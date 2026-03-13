@@ -59,7 +59,7 @@ MODELS = {
         "venv":    ROOT / "watson" / ".venv",
         "schemas": ["uco", "stix", "malont"],
         "cmd": lambda py, schema, limit: (
-            [py, "eval.py",
+            [py, "eval_ontologyextractor.py",
              "--dataset",   "ctinexus",
              "--data-path", str(DATASETS),
              "--schema",    schema,

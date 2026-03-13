@@ -1,0 +1,16 @@
+config.json
+.env
+.env.*
+*.env
+*.local
+
+__pycache__/
+*.py[cod]
+
+run_*/
+zvec_store/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+

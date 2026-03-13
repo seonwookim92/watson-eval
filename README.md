@@ -91,6 +91,9 @@ eval/
 | 릴레이션 타이핑 | ✓ (UCO ObjectProperty 매핑) |
 | venv 경로 | `watson/.venv` |
 
+> 현재 워크스페이스에서는 `watson-eval/OntologyExtractor -> ../OntologyExtractor` 심링크와
+> `watson/eval_ontologyextractor.py` 어댑터를 통해 `watson` 슬롯이 `OntologyExtractor` 백엔드를 사용하도록 연결되어 있습니다.
+
 ### 2. `ctinexus` — CTINexus (LLM Prompt Engineering)
 
 **특징**: 온톨로지 스키마 전체를 시스템 프롬프트에 주입한 뒤 LLM이 직접 클래스를 할당합니다. Few-shot 예시 3개를 포함한 2단계(IE → ET) 파이프라인.

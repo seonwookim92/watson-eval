@@ -22,6 +22,23 @@ warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; }
 sep()   { echo -e "\n${YELLOW}── $* ──${NC}"; }
 
+ensure_ontologyextractor_link() {
+    local LINK_PATH="$ROOT/OntologyExtractor"
+    local TARGET_PATH="../OntologyExtractor"
+
+    if [[ -L "$LINK_PATH" || -e "$LINK_PATH" ]]; then
+        info "OntologyExtractor link already present: $LINK_PATH"
+        return 0
+    fi
+
+    if [[ -d "$ROOT/$TARGET_PATH" ]]; then
+        ln -s "$TARGET_PATH" "$LINK_PATH"
+        info "Created symlink: $LINK_PATH -> $TARGET_PATH"
+    else
+        warn "Sibling OntologyExtractor repo not found at $ROOT/$TARGET_PATH"
+    fi
+}
+
 # Check Python version (>=3.10 required)
 check_python() {
     local py="${1:-$PYTHON}"
@@ -45,8 +62,10 @@ setup_watson() {
     sep "watson (our model)"
     local DIR="$ROOT/watson"
     local VENV="$DIR/.venv"
+    local LINKED_OE="$ROOT/OntologyExtractor"
 
     check_python "$PYTHON"
+    ensure_ontologyextractor_link
 
     if [[ -d "$VENV" ]]; then
         warn "venv already exists at $VENV — skipping creation (delete to recreate)"
@@ -57,8 +76,20 @@ setup_watson() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install -r "$DIR/requirements.txt"
+    "$PIP" install --no-compile -r "$DIR/requirements.txt"
     info "Installed watson dependencies"
+
+    if [[ -d "$LINKED_OE" ]]; then
+        "$PIP" install --no-compile -r "$LINKED_OE/requirements.txt"
+        "$PIP" install --no-compile chromadb
+        "$PIP" install --no-compile -r "$LINKED_OE/universal-ontology-mcp/requirements.txt"
+        if [[ -f "$LINKED_OE/TextItDown/requirements.txt" ]]; then
+            "$PIP" install --no-compile -r "$LINKED_OE/TextItDown/requirements.txt"
+        fi
+        info "Installed OntologyExtractor bridge dependencies into watson venv"
+    else
+        warn "OntologyExtractor link missing — watson slot will not use OntologyExtractor until the link exists"
+    fi
 
     info "watson ready  →  source watson/.venv/bin/activate"
 }
@@ -81,7 +112,7 @@ setup_ctinexus() {
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
     # Install the ctinexus package itself (pyproject.toml, editable)
-    "$PIP" install -e "$DIR"
+    "$PIP" install --no-compile -e "$DIR"
     info "Installed ctinexus and its dependencies"
 
     info "ctinexus ready  →  source baselines/ctinexus/.venv/bin/activate"
@@ -105,7 +136,7 @@ setup_ttpdrill() {
     local PIP="$VENV/bin/pip"
     local PY="$VENV/bin/python"
     "$PIP" install --upgrade pip -q
-    "$PIP" install spacy rank-bm25 tqdm pandas python-dotenv
+    "$PIP" install --no-compile spacy rank-bm25 tqdm pandas python-dotenv
 
     # Download spacy English model (needed for dependency parsing)
     if "$PY" -m spacy validate 2>/dev/null | grep -q "en_core_web_sm"; then
@@ -135,7 +166,7 @@ setup_gtikg() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install openai tqdm python-dotenv litellm
+    "$PIP" install --no-compile openai tqdm python-dotenv litellm
 
     info "gtikg ready  →  source baselines/gtikg/.venv_gtikg/bin/activate"
 }
