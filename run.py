@@ -4,14 +4,16 @@ Master extraction wrapper — run any model × schema combination.
 
 Produces outputs/ files in the standard {model}_{schema}_results.json format.
 
-Models  : watson | ctinexus | ttpdrill | gtikg  (or 'all')
+Models  : watson | ctinexus | ttpdrill | gtikg | ladder_ner | ladder_re  (or 'all')
 Schemas : uco | stix | malont                    (or 'all')
 
 Schema support per model:
-  watson    → uco, stix, malont
-  ctinexus  → uco, stix, malont
-  ttpdrill  → uco, stix, malont
-  gtikg     → schema-agnostic (runs once regardless of --schema, outputs gtikg_none_results.json)
+  watson     → uco, stix, malont
+  ctinexus   → uco, stix, malont
+  ttpdrill   → uco, stix, malont
+  gtikg      → schema-agnostic (runs once regardless of --schema, outputs gtikg_none_results.json)
+  ladder_ner → schema-agnostic (NER only, outputs ladder_ner_none_results.json)
+  ladder_re  → schema-agnostic (Relation Extraction, outputs ladder_re_none_results.json)
 
 Usage examples:
 
@@ -114,6 +116,24 @@ MODELS = {
         "schema_agnostic": True,
         "cmd": lambda py, schema, limit: [
             py, "eval_gtikg.py", str(limit or 0),
+        ],
+    },
+    "ladder_ner": {
+        "dir":     ROOT / "baselines" / "ladder" / "ner",
+        "venv":    ROOT / "baselines" / "ladder" / "ner" / "venv_ner",
+        "schemas": ["none"],
+        "schema_agnostic": True,
+        "cmd": lambda py, schema, limit: [
+            py, "eval_ladder_ner.py", str(limit or 0),
+        ],
+    },
+    "ladder_re": {
+        "dir":     ROOT / "baselines" / "ladder" / "relation_extraction",
+        "venv":    ROOT / "baselines" / "ladder" / "relation_extraction" / "venv_re",
+        "schemas": ["none"],
+        "schema_agnostic": True,
+        "cmd": lambda py, schema, limit: [
+            py, "eval_ladder_re.py", str(limit or 0),
         ],
     },
 }

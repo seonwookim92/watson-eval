@@ -1,0 +1,1 @@
+The attacker used Emotet to drop Trickbot and target Windows systems.

@@ -1,0 +1,82 @@
+[
+  {
+    "file": "0-days-exploited-by-commercial-surveillance-vendor-in-egypt.json",
+    "text": "Last week Google’s Threat Analysis Group (TAG), in partnership with The Citizen Lab, discovered an in-the-wild 0-day exploit chain for iPhones. Developed by the commercial surveillance vendor, Intelle…",
+    "ontology": "none",
+    "extracted_entities": [
+      {
+        "name": "Last week Google’s Threat Analysis Group (TAG), in partnership with The Citizen Lab, discovered an in-the-wild 0-day exploit chain for iPhones.",
+        "class": "unknown"
+      },
+      {
+        "name": "Developed by the commercial surveillance vendor, Intellexa, this exploit chain is used to install its Predator spyware surreptitiously onto a device.",
+        "class": "unknown"
+      },
+      {
+        "name": "In response, yesterday, Apple patched the bugs in iOS 16.7 and iOS 17.0.1 as CVE-2023-41991, CVE-2023-41992, CVE-2023-41993.",
+        "class": "unknown"
+      },
+      {
+        "name": "This quick patching from Apple helps to better protect users and we encourage all iOS users to install them as soon as possible.",
+        "class": "unknown"
+      }
+    ],
+    "extracted_triplets": []
+  },
+  {
+    "file": "3am-ransomware-lockbit.json",
+    "text": "A new ransomware family calling itself 3AM has emerged. To date, the ransomware has only been used in a limited fashion. Symantec's Threat Hunter Team, part of Broadcom, has seen it used in a single a…",
+    "ontology": "none",
+    "extracted_entities": [
+      {
+        "name": "A new ransomware family calling itself 3AM has emerged.",
+        "class": "unknown"
+      },
+      {
+        "name": "To date, the ransomware has only been used in a limited fashion.",
+        "class": "unknown"
+      },
+      {
+        "name": "Symantec's Threat Hunter Team, part of Broadcom, has seen it used in a single attack by a ransomware affiliate that attempted to deploy LockBit on a target's network and then switched to 3AM when LockBit was blocked.",
+        "class": "unknown"
+      },
+      {
+        "name": "3AM is written in Rust and appears to be a completely new malware family.",
+        "class": "unknown"
+      },
+      {
+        "name": "The ransomware attempts to stop multiple services on the infected computer before it begins encrypting files.",
+        "class": "unknown"
+      },
+      {
+        "name": "Once encryption is complete, it attempts to delete Volume Shadow (VSS) copies.",
+        "class": "unknown"
+      },
+      {
+        "name": "It is still unclear whether its authors have any links to known cybercrime organizations.",
+        "class": "unknown"
+      }
+    ],
+    "extracted_triplets": []
+  },
+  {
+    "file": "active-north-korean-campaign-targeting-security-researchers.json",
+    "text": "In January 2021, Threat Analysis Group (TAG) publicly disclosed a campaign from government backed actors in North Korea who used 0-day exploits to target security researchers working on vulnerability …",
+    "ontology": "none",
+    "extracted_entities": [
+      {
+        "name": "In January 2021, Threat Analysis Group (TAG) publicly disclosed a campaign from government backed actors in North Korea who used 0-day exploits to target security researchers working on vulnerability research and development.",
+        "class": "unknown"
+      },
+      {
+        "name": "Over the past two and a half years, TAG has continued to track and disrupt campaigns from these actors, finding 0-days and protecting online users.",
+        "class": "unknown"
+      },
+      {
+        "name": "Recently, TAG became aware of a new campaign likely from the same actors based on similarities with the previous campaign.",
+        "class": "unknown"
+      }
+    ],
+    "extracted_triplets": []
+  }
+]

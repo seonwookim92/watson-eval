@@ -1,0 +1,11 @@
+numpy
+tqdm
+pandas
+nltk
+scikit-learn
+scipy
+
+torch
+
+transformers>=4.41.0
+sentence-transformers>=3.0.0

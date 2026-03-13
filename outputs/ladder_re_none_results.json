@@ -1,0 +1,72 @@
+[
+  {
+    "file": "ladder_re_test_150",
+    "text": "Relation Extraction test on 150 dataset (3 samples, accuracy=1.0000)",
+    "ontology": "none",
+    "extracted_entities": [
+      {
+        "name": "HummingWhale",
+        "class": "unknown"
+      },
+      {
+        "name": "Google Play apps",
+        "class": "unknown"
+      },
+      {
+        "name": "Ginp",
+        "class": "unknown"
+      },
+      {
+        "name": "June 2019",
+        "class": "unknown"
+      },
+      {
+        "name": "com.gzhlubw.pmevdiexmn",
+        "class": "unknown"
+      },
+      {
+        "name": "Cerberus",
+        "class": "unknown"
+      }
+    ],
+    "extracted_triplets": [
+      {
+        "subject": "HummingWhale",
+        "relation": "targets",
+        "relation_class": "targets",
+        "object": "Google Play apps"
+      },
+      {
+        "subject": "Ginp",
+        "relation": "discoveredIn",
+        "relation_class": "discoveredIn",
+        "object": "June 2019"
+      },
+      {
+        "subject": "com.gzhlubw.pmevdiexmn",
+        "relation": "indicates",
+        "relation_class": "indicates",
+        "object": "Cerberus"
+      }
+    ],
+    "raw_output": {
+      "model": "bert-base-uncased",
+      "dataset": "150",
+      "total_samples": 3,
+      "accuracy": 1.0,
+      "relation_distribution": {
+        "N/A": 0,
+        "isA": 0,
+        "targets": 1,
+        "uses": 0,
+        "hasAuthor": 0,
+        "has": 0,
+        "variantOf": 0,
+        "hasAlias": 0,
+        "indicates": 1,
+        "discoveredIn": 1,
+        "exploits": 0
+      }
+    }
+  }
+]

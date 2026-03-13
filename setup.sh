@@ -140,6 +140,55 @@ setup_gtikg() {
     info "gtikg ready  →  source baselines/gtikg/.venv_gtikg/bin/activate"
 }
 
+# ─── ladder_ner baseline ─────────────────────────────────────────────────────
+setup_ladder_ner() {
+    sep "ladder NER baseline"
+    local DIR="$ROOT/baselines/ladder/ner"
+    local VENV="$DIR/.venv_ladder_ner"
+
+    check_python "$PYTHON"
+
+    if [[ -d "$VENV" ]]; then
+        warn "venv already exists at $VENV — skipping creation"
+    else
+        "$PYTHON" -m venv "$VENV"
+        info "Created venv: $VENV"
+    fi
+
+    local PIP="$VENV/bin/pip"
+    "$PIP" install --upgrade pip -q
+    "$PIP" install -r "$DIR/requirements.txt"
+    "$PIP" install git+https://github.com/aiforsec/CyNER.git
+    info "Installed ladder NER dependencies (including CyNER)"
+
+    info "ladder_ner ready  →  source baselines/ladder/ner/.venv_ladder_ner/bin/activate"
+}
+
+# ─── ladder_re baseline ──────────────────────────────────────────────────────
+setup_ladder_re() {
+    sep "ladder Relation Extraction baseline"
+    local DIR="$ROOT/baselines/ladder/relation_extraction"
+    local VENV="$DIR/.venv_ladder_re"
+
+    check_python "$PYTHON"
+
+    if [[ -d "$VENV" ]]; then
+        warn "venv already exists at $VENV — skipping creation"
+    else
+        "$PYTHON" -m venv "$VENV"
+        info "Created venv: $VENV"
+    fi
+
+    local PIP="$VENV/bin/pip"
+    "$PIP" install --upgrade pip -q
+    "$PIP" install -r "$DIR/requirements.txt"
+    # Force GPU-enabled PyTorch (CUDA 12.1)
+    "$PIP" install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    info "Installed ladder RE dependencies (PyTorch GPU/CUDA 12.1)"
+
+    info "ladder_re ready  →  source baselines/ladder/relation_extraction/.venv_ladder_re/bin/activate"
+}
+
 # ─── evaluate (shared, in watson venv) ────────────────────────────────────────
 setup_evaluate() {
     sep "evaluate.py dependencies"
@@ -163,7 +212,7 @@ TARGETS=("${@:-all}")
 
 # Expand "all"
 if [[ " ${TARGETS[*]} " == *" all "* ]]; then
-    TARGETS=(watson ctinexus ttpdrill gtikg)
+    TARGETS=(watson ctinexus ttpdrill gtikg ladder_ner ladder_re)
     # Automatically add 'evaluate' if watson is in targets
     TARGETS+=(evaluate)
 fi
@@ -181,9 +230,11 @@ for target in "${TARGETS[@]}"; do
         watson)    setup_watson    ;;
         ctinexus)  setup_ctinexus  ;;
         ttpdrill)  setup_ttpdrill  ;;
-        gtikg)     setup_gtikg     ;;
-        evaluate)  setup_evaluate   ;;
-        *)         error "Unknown target: $target (choose: watson ctinexus ttpdrill gtikg all)" ;;
+        gtikg)      setup_gtikg      ;;
+        ladder_ner) setup_ladder_ner  ;;
+        ladder_re)  setup_ladder_re   ;;
+        evaluate)   setup_evaluate    ;;
+        *)          error "Unknown target: $target (choose: watson ctinexus ttpdrill gtikg ladder_ner ladder_re all)" ;;
     esac
 done
 

@@ -1,0 +1,16 @@
+flair
+spacy
+spacy-lookups-data
+pillow
+mecab-python3
+uvicorn
+jinja2
+aiofiles
+fastapi
+matplotlib
+toml
+seqeval
+transformers
+sudachipy
+tensorboard
+torch

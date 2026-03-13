@@ -75,3 +75,27 @@ baselines/*/*.onnx
 analyzer/input/*
 !analyzer/input/.gitkeep
 analyzer/mcp/.gitkeep
+
+# ==============================================================================
+# LADDER Baselines (NER & RE) Large Files
+# ==============================================================================
+
+# 1. Virtual Environments (PyTorch DLLs, etc.)
+baselines/ladder/ner/venv_ner/
+baselines/ladder/ner/.venv_ladder_ner/
+baselines/ladder/relation_extraction/venv_re/
+baselines/ladder/relation_extraction/.venv_ladder_re/
+
+# 2. Models & Checkpoints
+baselines/ladder/relation_extraction/*.pt
+baselines/ladder/relation_extraction/*.bin
+baselines/ladder/ner/CyNER_src/models/
+
+# 3. Python Cache & Logs
+baselines/ladder/**/__pycache__/
+baselines/ladder/**/*.pyc
+baselines/ladder/relation_extraction/*.log
+
+# 4. Outputs (Temporary/Outputs)
+baselines/ladder/ner/sample_output.txt
+baselines/ladder/relation_extraction/*_test_predictions.json
