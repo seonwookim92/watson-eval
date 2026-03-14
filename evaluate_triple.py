@@ -363,6 +363,7 @@ async def hitl_match_triples(
         match_log.append({
             "pred":      _triple_display(pred_triples[pi]),
             "gold":      _triple_display(gold_triples[gj]),
+            "gold_idx":  gj,
             "emb_score": round(emb_sc, 4),
             "emb_match": emb_ok,
             "llm_match": llm_ok,
@@ -622,7 +623,7 @@ async def main() -> None:
     gt_map = _load_gt_with_implicit(args.ground_truth)
 
     emb = EmbeddingMatcher(threshold=args.threshold)
-    llm = _build_llm(llm_provider, llm_model, args.llm_base_url)
+    llm = _build_llm(llm_provider, llm_model, llm_base_url)
 
     if args.limit:
         extracted = extracted[:args.limit]

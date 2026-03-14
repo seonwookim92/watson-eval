@@ -1,0 +1,26 @@
+# watson-new dependencies
+# Setup: bash setup.sh watson-new
+
+# Pipeline orchestration
+langgraph
+typing-extensions
+
+# HTTP clients (LLM + embedding APIs)
+requests
+python-dotenv
+
+# Ontology validation (RDFLib — for OntologyConstraintChecker in pipeline)
+rdflib
+
+# MCP server (ontology exploration subprocess)
+mcp
+
+# Embeddings (MCP engine semantic search + entity resolution)
+numpy
+sentence-transformers
+
+# Vector store (entity similarity search)
+chromadb
+
+# IoC detection (optional — gracefully skipped if not installed)
+iocsearcher

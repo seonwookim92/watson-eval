@@ -4,14 +4,17 @@ Master extraction wrapper — run any model × schema combination.
 
 Produces outputs/ files in the standard {model}_{schema}_results.json format.
 
-Models  : watson | ctinexus | ttpdrill | gtikg  (or 'all')
+Models  : watson | watson-new | ctinexus | ttpdrill | gtikg | ladder_ner | ladder_re  (or 'all')
 Schemas : uco | stix | malont                    (or 'all')
 
 Schema support per model:
-  watson    → uco, stix, malont
-  ctinexus  → uco, stix, malont
-  ttpdrill  → uco, stix, malont
-  gtikg     → schema-agnostic (runs once regardless of --schema, outputs gtikg_none_results.json)
+  watson      → uco, stix, malont
+  watson-new  → uco, stix, malont  (OntologyExtractor backend — needs watson-new/OntologyExtractor/config.json)
+  ctinexus    → uco, stix, malont
+  ttpdrill    → uco, stix, malont
+  gtikg       → schema-agnostic (runs once regardless of --schema, outputs gtikg_none_results.json)
+  ladder_ner  → schema-agnostic (CyNER-based NER, outputs ladder_ner_none_results.json)
+  ladder_re   → schema-agnostic (relation extraction, outputs ladder_re_none_results.json)
 
 Usage examples:
 
@@ -24,8 +27,14 @@ Usage examples:
   # One model, one schema
   python run.py --model ctinexus --schema uco
 
-  # Watson with all supported schemas, 10 samples
+  # Watson (original) with all supported schemas, 10 samples
   python run.py --model watson --schema all --limit 10
+
+  # Watson-new (OntologyExtractor backend) with UCO schema
+  python run.py --model watson-new --schema uco --limit 5
+
+  # LADDER baselines (schema-agnostic)
+  python run.py --model ladder_ner ladder_re
 
   # Multiple models, multiple schemas
   python run.py --model ctinexus ttpdrill --schema uco stix --limit 5
@@ -35,6 +44,7 @@ Usage examples:
 """
 
 import argparse
+import re
 import subprocess
 import sys
 import os
@@ -48,22 +58,59 @@ try:
 except Exception:
     _env = {}
 
+
+def _e(key: str, default: str = "") -> str:
+    return _env.get(key) or os.getenv(key, default)
+
+
+def _safe(s: str) -> str:
+    """Make a string safe for use in filenames."""
+    return re.sub(r"[^\w.\-]", "-", s).strip("-")
+
+
 def _llm_tag() -> str:
-    """Return a short LLM identifier from .env, e.g. 'ollama/qwen3.5:35b'."""
-    def _get(key, default=""):
-        return _env.get(key) or os.getenv(key, default)
-    provider = _get("LLM_PROVIDER", "openai")
+    """Return a short LLM identifier for display, e.g. 'ollama/qwen3.5:35b'."""
+    provider = _e("LLM_PROVIDER", "openai")
     if provider == "openai":
-        model = _get("OPENAI_MODEL", "gpt-4o")
+        model = _e("OPENAI_MODEL", "gpt-4o")
     elif provider == "ollama":
-        model = _get("OLLAMA_MODEL", "llama3.1:8b")
+        model = _e("OLLAMA_MODEL", "llama3.1:8b")
     elif provider == "gemini":
-        model = _get("GOOGLE_MODEL", "gemini-1.5-pro")
+        model = _e("GOOGLE_MODEL", "gemini-1.5-pro")
     elif provider in ("claude", "anthropic"):
-        model = _get("ANTHROPIC_MODEL", "claude-3-5-sonnet")
+        model = _e("ANTHROPIC_MODEL", "claude-3-5-sonnet")
     else:
         model = "unknown"
     return f"{provider}/{model}"
+
+
+def _llm_short(model_name: str) -> str:
+    """Return a filename-safe LLM model identifier for a given model."""
+    if model_name == "watson-new":
+        return _safe(_e("WATSON_NEW_LLM_MODEL", "unknown"))
+    provider = _e("LLM_PROVIDER", "openai")
+    if provider == "openai":
+        llm = _e("OPENAI_MODEL", "gpt-4o")
+    elif provider == "ollama":
+        llm = _e("OLLAMA_MODEL", "llama3")
+    elif provider == "gemini":
+        llm = _e("GOOGLE_MODEL", "gemini")
+    elif provider in ("claude", "anthropic"):
+        llm = _e("ANTHROPIC_MODEL", "claude")
+    else:
+        llm = "unknown"
+    return _safe(f"{provider}-{llm}")
+
+
+def _eval_mode() -> str:
+    return _safe(_e("EVAL_MATCH_MODE", "embedding"))
+
+
+def output_filename(model: str, schema: str, ts: str) -> Path:
+    """Build a detailed output filename: {model}_{schema}_{llm}_{eval_mode}_{ts}_results.json"""
+    llm = _llm_short(model)
+    mode = _eval_mode()
+    return OUTPUTS / f"{model}_{schema}_{llm}_{mode}_{ts}_results.json"
 
 ROOT     = Path(__file__).parent.resolve()
 OUTPUTS  = ROOT / "outputs"
@@ -82,12 +129,12 @@ MODELS = {
         "dir":     ROOT / "watson",
         "venv":    ROOT / "watson" / ".venv",
         "schemas": ["uco", "stix", "malont"],
-        "cmd": lambda py, schema, limit: (
+        "cmd": lambda py, schema, limit, out: (
             [py, "eval.py",
              "--dataset",   "ctinexus",
              "--data-path", str(DATASETS),
              "--schema",    schema,
-             "--output",    str(OUTPUTS / f"watson_{schema}_results.json")]
+             "--output",    out]
             + (["--limit", str(limit)] if limit else [])
         ),
     },
@@ -95,7 +142,7 @@ MODELS = {
         "dir":     ROOT / "baselines" / "ctinexus",
         "venv":    ROOT / "baselines" / "ctinexus" / ".venv",
         "schemas": ["uco", "stix", "malont"],
-        "cmd": lambda py, schema, limit: [
+        "cmd": lambda py, schema, limit, out: [
             py, "eval_ctinexus.py", str(limit or 0), schema,
         ],
     },
@@ -103,7 +150,7 @@ MODELS = {
         "dir":     ROOT / "baselines" / "ttpdrill",
         "venv":    ROOT / "baselines" / "ttpdrill" / ".venv_ttpdrill",
         "schemas": ["uco", "stix", "malont"],
-        "cmd": lambda py, schema, limit: [
+        "cmd": lambda py, schema, limit, out: [
             py, "eval_ttpdrill.py", str(limit or 0), schema,
         ],
     },
@@ -112,8 +159,39 @@ MODELS = {
         "venv":    ROOT / "baselines" / "gtikg" / ".venv_gtikg",
         "schemas": ["none"],           # schema-agnostic: always runs once
         "schema_agnostic": True,
-        "cmd": lambda py, schema, limit: [
+        "cmd": lambda py, schema, limit, out: [
             py, "eval_gtikg.py", str(limit or 0),
+        ],
+    },
+    "watson-new": {
+        "dir":     ROOT / "watson-new",
+        "venv":    ROOT / "watson-new" / ".venv",
+        "schemas": ["uco", "stix", "malont"],
+        "cmd": lambda py, schema, limit, out: (
+            [py, "eval.py",
+             "--dataset",   "ctinexus",
+             "--data-path", str(DATASETS),
+             "--schema",    schema,
+             "--output",    out]
+            + (["--limit", str(limit)] if limit else [])
+        ),
+    },
+    "ladder_ner": {
+        "dir":     ROOT / "baselines" / "ladder" / "ner",
+        "venv":    ROOT / "baselines" / "ladder" / "ner" / ".venv_ladder_ner",
+        "schemas": ["none"],
+        "schema_agnostic": True,
+        "cmd": lambda py, schema, limit, out: [
+            py, "eval_ladder_ner.py", str(limit or 0),
+        ],
+    },
+    "ladder_re": {
+        "dir":     ROOT / "baselines" / "ladder" / "relation_extraction",
+        "venv":    ROOT / "baselines" / "ladder" / "relation_extraction" / ".venv_ladder_re",
+        "schemas": ["none"],
+        "schema_agnostic": True,
+        "cmd": lambda py, schema, limit, out: [
+            py, "eval_ladder_re.py", str(limit or 0),
         ],
     },
 }
@@ -138,7 +216,10 @@ def resolve_python(venv: Path) -> str:
 
 
 def output_exists(model: str, schema: str) -> bool:
-    return (OUTPUTS / f"{model}_{schema}_results.json").exists()
+    # Match both old format (watson_stix_results.json) and new detailed format
+    if (OUTPUTS / f"{model}_{schema}_results.json").exists():
+        return True
+    return any(OUTPUTS.glob(f"{model}_{schema}_*_results.json"))
 
 
 def run_job(model: str, schema: str, limit: int | None, skip_existing: bool, dry_run: bool) -> bool:
@@ -149,18 +230,18 @@ def run_job(model: str, schema: str, limit: int | None, skip_existing: bool, dry
         print(f"  [skip] {model} does not support schema '{schema}'")
         return True
 
-    out_file = OUTPUTS / f"{model}_{schema}_results.json"
-    if skip_existing and out_file.exists():
-        print(f"  [skip] {out_file.name} already exists (--skip-existing)")
+    if skip_existing and output_exists(model, schema):
+        print(f"  [skip] {model}_{schema} output already exists (--skip-existing)")
         return True
-
-    python = resolve_python(cfg["venv"])
-    cmd    = cfg["cmd"](python, schema, limit)
 
     started_at = datetime.now()
     ts = started_at.strftime("%y%m%d%H%M")
-    llm = _llm_tag()
+    out_file = output_filename(model, schema, ts)
 
+    python = resolve_python(cfg["venv"])
+    cmd    = cfg["cmd"](python, schema, limit, str(out_file))
+
+    llm = _llm_tag()
     tag = f"{model}/{schema}" + (f" limit={limit}" if limit else "")
     print(f"\n{'─'*60}")
     print(f"  model   : {model}")
@@ -261,12 +342,13 @@ def main():
 
     # --list mode
     if args.list:
-        print(f"{'Model':<12} {'Schema':<10} {'Output file'}")
-        print("-" * 50)
+        ts_preview = datetime.now().strftime("%y%m%d%H%M")
+        print(f"{'Model':<12} {'Schema':<8} {'Output file (preview)'}")
+        print("-" * 70)
         for m, s in jobs:
-            out = f"{m}_{s}_results.json"
+            out = output_filename(m, s, ts_preview).name
             exists = "✓" if output_exists(m, s) else " "
-            print(f"[{exists}] {m:<10} {s:<10} {out}")
+            print(f"[{exists}] {m:<10} {s:<8} {out}")
         print(f"\nTotal: {len(jobs)} jobs")
         return
 
@@ -279,17 +361,36 @@ def main():
           + (" | dry-run" if args.dry_run else "")
           + (" | skip-existing" if args.skip_existing else ""))
 
+    total_start = datetime.now()
+    job_times: list[tuple[str, str, int, bool]] = []  # (model, schema, elapsed_s, ok)
+
     failed = []
     for model, schema in jobs:
         ok = run_job(model, schema, limit, args.skip_existing, args.dry_run)
+        elapsed = (datetime.now() - total_start).seconds
+        job_times.append((model, schema, elapsed, ok))
         if not ok:
             failed.append(f"{model}/{schema}")
+
+    total_elapsed = int((datetime.now() - total_start).total_seconds())
+    total_mm, total_ss = divmod(total_elapsed, 60)
 
     # Summary
     print(f"\n{'='*60}")
     print(f"Done  : {len(jobs) - len(failed)}/{len(jobs)} succeeded")
+    if len(jobs) > 1:
+        print(f"\n  {'Model':<12} {'Schema':<8} {'Time':>8}  Status")
+        print(f"  {'-'*40}")
+        prev = 0
+        for m, s, cum, ok in job_times:
+            job_s = cum - prev
+            mm, ss = divmod(job_s, 60)
+            status = "OK" if ok else "FAIL"
+            print(f"  {m:<12} {s:<8} {mm:>3}m {ss:02d}s  {status}")
+            prev = cum
     if failed:
-        print(f"Failed: {', '.join(failed)}")
+        print(f"\nFailed: {', '.join(failed)}")
+    print(f"\nTotal : {total_mm}m {total_ss:02d}s")
     print(f"Output: {OUTPUTS}/")
     print(f"{'='*60}")
 

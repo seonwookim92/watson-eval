@@ -63,6 +63,7 @@ htmlcov/
 # Keep outputs/ tracked (comparison results)
 # Keep ontology/ tracked (schema files)
 # Keep datasets/ tracked (benchmark annotations)
+outputs/*
 
 # Ignore large model weights or downloaded assets inside baselines
 baselines/*/models/

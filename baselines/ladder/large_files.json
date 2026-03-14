@@ -1,0 +1,122 @@
+[
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\torch_cuda.dll",
+    "SizeMB": 884.96
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\dnnl.lib",
+    "SizeMB": 623.27
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cudnn_engines_precompiled64_9.dll",
+    "SizeMB": 561.63
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cublasLt64_12.dll",
+    "SizeMB": 513.86
+  },
+  {
+    "Path": "relation_extraction\\150_best_1.pt",
+    "SizeMB": 422.26
+  },
+  {
+    "Path": "ner\\venv_ner\\Lib\\site-packages\\torch\\lib\\torch_cpu.dll",
+    "SizeMB": 252.67
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cusparse64_12.dll",
+    "SizeMB": 250.19
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\torch_cpu.dll",
+    "SizeMB": 237.76
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cudnn_adv64_9.dll",
+    "SizeMB": 230.39
+  },
+  {
+    "Path": "ner\\venv_ner\\Lib\\site-packages\\sudachidict_core\\resources\\system.dic",
+    "SizeMB": 207.14
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cufft64_11.dll",
+    "SizeMB": 181.53
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cusolver64_11.dll",
+    "SizeMB": 105.09
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cudnn_ops64_9.dll",
+    "SizeMB": 102.73
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cublas64_12.dll",
+    "SizeMB": 93.52
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cudnn_heuristic64_9.dll",
+    "SizeMB": 81.77
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\cusolverMg64_11.dll",
+    "SizeMB": 73.44
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\curand64_10.dll",
+    "SizeMB": 60.56
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\nvrtc64_120_0.dll",
+    "SizeMB": 40.21
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\libprotoc.lib",
+    "SizeMB": 37.81
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\libprotobuf.lib",
+    "SizeMB": 36.04
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\nvJitLink_120_0.dll",
+    "SizeMB": 32.79
+  },
+  {
+    "Path": "ner\\venv_ner\\Lib\\site-packages\\torch\\lib\\torch_cpu.lib",
+    "SizeMB": 28.23
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\torch_cpu.lib",
+    "SizeMB": 27.13
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\kineto.lib",
+    "SizeMB": 20.73
+  },
+  {
+    "Path": "ner\\venv_ner\\Lib\\site-packages\\numpy.libs\\libscipy_openblas64_-4bb64bb73b19ae7523581172b5c4a821.dll",
+    "SizeMB": 19.46
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\numpy.libs\\libscipy_openblas64_-4bb64bb73b19ae7523581172b5c4a821.dll",
+    "SizeMB": 19.46
+  },
+  {
+    "Path": "ner\\venv_ner\\Lib\\site-packages\\scipy.libs\\libscipy_openblas-64eda39e79589aedb16f58e5547eb599.dll",
+    "SizeMB": 19.32
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\scipy.libs\\libscipy_openblas-64eda39e79589aedb16f58e5547eb599.dll",
+    "SizeMB": 19.32
+  },
+  {
+    "Path": "ner\\venv_ner\\Lib\\site-packages\\torch\\lib\\torch_python.dll",
+    "SizeMB": 17.84
+  },
+  {
+    "Path": "relation_extraction\\venv_re\\Lib\\site-packages\\torch\\lib\\torch_python.dll",
+    "SizeMB": 15.55
+  }
+]
