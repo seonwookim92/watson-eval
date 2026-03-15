@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 import tempfile
 from collections import OrderedDict
@@ -62,6 +63,9 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--schema",    default="uco", choices=["uco", "stix", "malont"])
     p.add_argument("--limit",     type=int, default=None)
     p.add_argument("--verbose",   action="store_true")
+    p.add_argument("--llm-base-url", default=None)
+    p.add_argument("--embedding-mode", choices=["local", "remote"], default="local")
+    p.add_argument("--embedding-base-url", default=None)
     return p.parse_args()
 
 
@@ -136,6 +140,13 @@ def _build_triplets(typed_triplets: Iterable[Dict[str, Any]]) -> List[Dict[str, 
 
 def main() -> int:
     args = parse_args()
+
+    if args.llm_base_url:
+        os.environ["WATSON_NEW_LLM_BASE_URL"] = args.llm_base_url
+    if args.embedding_mode:
+        os.environ["WATSON_NEW_EMBEDDING_MODE"] = args.embedding_mode
+    if args.embedding_base_url:
+        os.environ["WATSON_NEW_EMBEDDING_BASE_URL"] = args.embedding_base_url
 
     schema_file = SCHEMA_FILES[args.schema]
     if not schema_file.exists():

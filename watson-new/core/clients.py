@@ -8,8 +8,9 @@ import sys
 import threading
 import time
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
+import numpy as np
 import requests
 
 from .utils import read_json_payload
@@ -24,6 +25,7 @@ class LLMClient:
         max_tokens: int = 2048,
         thinking: bool = False,
         logger: Optional[logging.Logger] = None,
+        tracer: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
@@ -32,6 +34,7 @@ class LLMClient:
         self.thinking = thinking
         self.endpoint = f"{self.base_url}/chat/completions"
         self.logger = logger or logging.getLogger(__name__)
+        self.tracer = tracer
 
     @staticmethod
     def _truncate_for_log(value: Any, limit: int = 4000) -> str:
@@ -40,7 +43,12 @@ class LLMClient:
             return text
         return f"{text[:limit]}... [truncated {len(text) - limit} chars]"
 
-    def _request(self, messages: List[Dict[str, str]], response_format_json: bool = True) -> str:
+    def _request(
+        self,
+        messages: List[Dict[str, str]],
+        response_format_json: bool = True,
+        trace_context: Optional[Dict[str, Any]] = None,
+    ) -> str:
         payload: Dict[str, Any] = {
             "model": self.model,
             "messages": messages,
@@ -61,10 +69,26 @@ class LLMClient:
                 resp.raise_for_status()
                 data = resp.json()
                 try:
-                    return data["choices"][0]["message"]["content"]
+                    content = data["choices"][0]["message"]["content"]
+                    if self.tracer and trace_context:
+                        self.tracer({
+                            **trace_context,
+                            "event": "llm_exchange",
+                            "request": payload,
+                            "response": data,
+                            "response_content": content,
+                        })
+                    return content
                 except (KeyError, IndexError, TypeError):
                     raise RuntimeError(f"Invalid chat response format: {data}")
             except requests.exceptions.Timeout:
+                if self.tracer and trace_context:
+                    self.tracer({
+                        **trace_context,
+                        "event": "llm_timeout",
+                        "request": payload,
+                        "error": f"timeout after {self.timeout}s",
+                    })
                 self.logger.error(
                     "[LLM][timeout] model=%s attempt=%s timeout=%ss",
                     self.model,
@@ -80,6 +104,14 @@ class LLMClient:
                     attempt,
                     e,
                 )
+                if self.tracer and trace_context:
+                    self.tracer({
+                        **trace_context,
+                        "event": "llm_error",
+                        "request": payload,
+                        "error": str(e),
+                        "attempt": attempt,
+                    })
                 last_exc = e
                 if attempt < 3:
                     time.sleep(2 ** attempt)
@@ -89,25 +121,35 @@ class LLMClient:
         self,
         prompt: str,
         extra_messages: Optional[List[Dict[str, str]]] = None,
+        trace_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         messages = [{"role": "user", "content": prompt}]
         if extra_messages:
             messages = extra_messages + messages
-        content = self._request(messages, response_format_json=True)
+        content = self._request(messages, response_format_json=True, trace_context=trace_context)
         return read_json_payload(content)
 
     def chat_text(
         self,
         prompt: str,
         extra_messages: Optional[List[Dict[str, str]]] = None,
+        trace_context: Optional[Dict[str, Any]] = None,
     ) -> str:
         messages = [{"role": "user", "content": prompt}]
         if extra_messages:
             messages = extra_messages + messages
-        return self._request(messages, response_format_json=False)
+        return self._request(messages, response_format_json=False, trace_context=trace_context)
 
 
 class EmbeddingClient:
+    def encode(self, text: str) -> List[float]:
+        raise NotImplementedError
+
+    def encode_many(self, texts: List[str]) -> List[List[float]]:
+        raise NotImplementedError
+
+
+class RemoteEmbeddingClient(EmbeddingClient):
     def __init__(
         self,
         base_url: str,
@@ -163,6 +205,46 @@ class EmbeddingClient:
             return [self.encode(text) for text in texts]
 
 
+class LocalEmbeddingClient(EmbeddingClient):
+    def __init__(self, model: str) -> None:
+        from sentence_transformers import SentenceTransformer
+
+        self.model = model
+        self._model = SentenceTransformer(model)
+
+    def encode(self, text: str) -> List[float]:
+        vector = self._model.encode(text, show_progress_bar=False)
+        return np.asarray(vector, dtype=float).tolist()
+
+    def encode_many(self, texts: List[str]) -> List[List[float]]:
+        if not texts:
+            return []
+        vectors = self._model.encode(texts, batch_size=64, show_progress_bar=False)
+        return [np.asarray(vector, dtype=float).tolist() for vector in vectors]
+
+
+def build_embedding_client(
+    mode: str,
+    model: str,
+    truncate_prompt_tokens: int,
+    base_url: str = "",
+    timeout: int = 120,
+    api_key: str = "",
+) -> EmbeddingClient:
+    normalized = mode.strip().lower()
+    if normalized == "remote":
+        return RemoteEmbeddingClient(
+            base_url,
+            model,
+            truncate_prompt_tokens,
+            timeout=timeout,
+            api_key=api_key,
+        )
+    if normalized == "local":
+        return LocalEmbeddingClient(model)
+    raise ValueError(f"Unsupported embedding mode: {mode}")
+
+
 class MCPStdioClient:
     """MCP JSON-RPC client communicating over stdio with the universal-ontology-mcp subprocess."""
 
@@ -171,6 +253,7 @@ class MCPStdioClient:
         script_path: str,
         ontology_file: str,
         logger: logging.Logger,
+        embedding_mode: str = "local",
         embedding_base_url: str = "",
         embedding_model: str = "",
         embedding_api_key: str = "",
@@ -180,6 +263,7 @@ class MCPStdioClient:
         ontology_path = Path(ontology_file).resolve()
         self.ontology_dir = str(ontology_path if ontology_path.is_dir() else ontology_path.parent)
         self.logger = logger
+        self.embedding_mode = embedding_mode.strip().lower()
         self.embedding_base_url = embedding_base_url.rstrip("/")
         self.embedding_model = embedding_model
         self.embedding_api_key = embedding_api_key
@@ -191,11 +275,12 @@ class MCPStdioClient:
 
     def __enter__(self) -> "MCPStdioClient":
         env = {**os.environ, "ONTOLOGY_DIR": self.ontology_dir}
-        if self.embedding_base_url:
+        env["EMBEDDING_MODE"] = self.embedding_mode
+        if self.embedding_base_url and self.embedding_mode == "remote":
             env["EMBEDDING_API_URL"] = f"{self.embedding_base_url}/embeddings"
         if self.embedding_model:
             env["EMBEDDING_MODEL"] = self.embedding_model
-        if self.embedding_api_key:
+        if self.embedding_api_key and self.embedding_mode == "remote":
             env["EMBEDDING_API_KEY"] = self.embedding_api_key
         self.proc = subprocess.Popen(
             [sys.executable, self.script_path],

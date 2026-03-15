@@ -14,7 +14,7 @@ logging.getLogger("httpx").setLevel(logging.WARNING)
 SHACL = rdflib.Namespace("http://www.w3.org/ns/shacl#")
 
 # Bump this whenever the cache format or schema parsing logic changes
-_CACHE_VERSION = "2"
+_CACHE_VERSION = "3"
 
 
 class _RemoteEmbeddingModel:
@@ -41,6 +41,23 @@ class _RemoteEmbeddingModel:
         return result[0] if single else result
 
 
+class _LocalEmbeddingModel:
+    """SentenceTransformer-backed local embedding model."""
+
+    def __init__(self, model: str):
+        from sentence_transformers import SentenceTransformer
+
+        self._model = SentenceTransformer(model)
+
+    def encode(self, text, batch_size=None, show_progress_bar=False, **kwargs):
+        return self._model.encode(
+            text,
+            batch_size=batch_size,
+            show_progress_bar=show_progress_bar,
+            **kwargs,
+        )
+
+
 class OntologyEngine:
     """Core ontology management engine with semantic search capabilities."""
     def __init__(self, ontology_path, model_name="all-MiniLM-L6-v2"):
@@ -52,10 +69,17 @@ class OntologyEngine:
         self.instance_base_uri = "http://example.org/entities/"
         self._ontology_files = []  # [(filepath, format), ...] — used for cache key
 
-        api_url = os.environ.get("EMBEDDING_API_URL", "http://192.168.100.2:8082/v1/embeddings")
-        api_key = os.environ.get("EMBEDDING_API_KEY", "no-key")
-        sys.stderr.write(f"Initializing Remote Embedding Model ({model_name} @ {api_url})...\n")
-        self.model = _RemoteEmbeddingModel(api_url, model_name, api_key)
+        embedding_mode = os.environ.get("EMBEDDING_MODE", "local").strip().lower()
+        if embedding_mode == "remote":
+            api_url = os.environ.get("EMBEDDING_API_URL", "http://192.168.100.2:8082/v1/embeddings")
+            api_key = os.environ.get("EMBEDDING_API_KEY", "no-key")
+            sys.stderr.write(
+                f"Initializing Remote Embedding Model ({model_name} @ {api_url})...\n"
+            )
+            self.model = _RemoteEmbeddingModel(api_url, model_name, api_key)
+        else:
+            sys.stderr.write(f"Initializing Local Embedding Model ({model_name})...\n")
+            self.model = _LocalEmbeddingModel(model_name)
         self.load_ontology()
 
     @staticmethod

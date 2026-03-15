@@ -222,7 +222,25 @@ def output_exists(model: str, schema: str) -> bool:
     return any(OUTPUTS.glob(f"{model}_{schema}_*_results.json"))
 
 
-def run_job(model: str, schema: str, limit: int | None, skip_existing: bool, dry_run: bool) -> bool:
+def _watson_new_extra_args(args: argparse.Namespace) -> list[str]:
+    extra: list[str] = []
+    if args.watson_new_llm_base_url:
+        extra.extend(["--llm-base-url", args.watson_new_llm_base_url])
+    if args.watson_new_embedding_mode:
+        extra.extend(["--embedding-mode", args.watson_new_embedding_mode])
+    if args.watson_new_embedding_base_url:
+        extra.extend(["--embedding-base-url", args.watson_new_embedding_base_url])
+    return extra
+
+
+def run_job(
+    model: str,
+    schema: str,
+    limit: int | None,
+    skip_existing: bool,
+    dry_run: bool,
+    args: argparse.Namespace,
+) -> bool:
     """Run one (model, schema) extraction job. Returns True on success."""
     cfg = MODELS[model]
 
@@ -240,6 +258,8 @@ def run_job(model: str, schema: str, limit: int | None, skip_existing: bool, dry
 
     python = resolve_python(cfg["venv"])
     cmd    = cfg["cmd"](python, schema, limit, str(out_file))
+    if model == "watson-new":
+        cmd += _watson_new_extra_args(args)
 
     llm = _llm_tag()
     tag = f"{model}/{schema}" + (f" limit={limit}" if limit else "")
@@ -307,6 +327,18 @@ def main():
         "--list", action="store_true",
         help="List all (model, schema) jobs that would be run, then exit",
     )
+    parser.add_argument(
+        "--watson-new-llm-base-url", default=None,
+        help="Override watson-new LLM API base URL, e.g. http://192.168.100.2:8081/v1",
+    )
+    parser.add_argument(
+        "--watson-new-embedding-mode", choices=["local", "remote"], default=None,
+        help="watson-new embedding mode. Default is its own config default.",
+    )
+    parser.add_argument(
+        "--watson-new-embedding-base-url", default=None,
+        help="Override watson-new embedding API base URL, e.g. http://192.168.100.2:8082/v1",
+    )
     args = parser.parse_args()
 
     # Resolve model list
@@ -366,7 +398,7 @@ def main():
 
     failed = []
     for model, schema in jobs:
-        ok = run_job(model, schema, limit, args.skip_existing, args.dry_run)
+        ok = run_job(model, schema, limit, args.skip_existing, args.dry_run, args)
         elapsed = (datetime.now() - total_start).seconds
         job_times.append((model, schema, elapsed, ok))
         if not ok:
