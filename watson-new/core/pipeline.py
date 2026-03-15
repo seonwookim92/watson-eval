@@ -37,6 +37,7 @@ from .prompts import (
     data_property_resolution_agent_prompt,
     entity_extraction_prompt,
     entity_inventory_from_triplets_prompt,
+    entity_pre_classification_prompt,
     entity_resolution_prompt,
     ioc_prompt,
     object_property_resolution_agent_prompt,
@@ -1689,6 +1690,33 @@ class OntologyExtractorPipeline:
 
     _QUICK_TYPE_MATCH_CONFIDENCE_THRESHOLD = 0.75
 
+    def _pre_classify_entity(self, entity: str, context: str) -> str:
+        """방안 1: 사전 카테고리 분류.
+
+        Runs one cheap LLM call to produce a 2-4 word ontology-friendly concept label
+        (e.g. "malware spyware", "organization company") that is then used as the
+        search query for _quick_type_match instead of the raw entity name.
+
+        Returns the concept string, or "" on failure.
+        """
+        try:
+            parsed = self.llm.chat_json(
+                entity_pre_classification_prompt(entity, context),
+                trace_context={"event": "entity_pre_classification", "entity": entity},
+            )
+            if isinstance(parsed, dict):
+                concept = parsed.get("concept", "").strip()
+                if concept:
+                    self._log(
+                        logging.INFO,
+                        "[pre_classify] '%s' -> '%s'",
+                        entity, concept,
+                    )
+                    return concept
+        except Exception as e:
+            self._log(logging.WARNING, "[pre_classify] failed for '%s': %s", entity, e)
+        return ""
+
     def _quick_type_match(
         self,
         mcp: MCPStdioClient,
@@ -1739,14 +1767,28 @@ class OntologyExtractorPipeline:
             if cache_key in self._entity_class_cache:
                 return self._entity_class_cache[cache_key]
 
+        # 방안 1: pre-classify entity to get an ontology-friendly concept hint
+        concept_hint = self._pre_classify_entity(entity, context)
+
         # 방안 4: 1차 패스 — search_classes + type_match_select_prompt (1 MCP call)
-        # Use entity name as the initial query. If this yields high-confidence result, skip agent loop.
-        class_uri, class_name = self._quick_type_match(mcp, entity, context, entity.strip())
+        # Try with the concept hint first; if that fails, fall back to raw entity name.
+        search_query = concept_hint if concept_hint else entity.strip()
+        class_uri, class_name = self._quick_type_match(mcp, entity, context, search_query)
+        if not class_uri and concept_hint:
+            # concept hint did not yield high-confidence result — retry with entity name directly
+            class_uri, class_name = self._quick_type_match(mcp, entity, context, entity.strip())
         if class_uri:
             result = (class_uri, class_name)
             with self._cache_lock:
                 self._entity_class_cache[cache_key] = result
             return result
+
+        # Fall through: full MCP agent loop
+        # Inject concept hint into context so the agent starts with a directional hint
+        agent_context = (
+            f"{context}\n[Pre-classified concept: {concept_hint}]"
+            if concept_hint else context
+        )
 
         max_per_entity = int(self.config["mcp"]["max_tool_calls_type_matching"])
         allowed_tools = {
@@ -1764,9 +1806,9 @@ class OntologyExtractorPipeline:
         for _ in range(3):
             parsed = self._run_mcp_agent_loop(
                 mcp=mcp,
-                prompt_factory=lambda transcript, remaining, force_finish=False, feedback=validation_feedback: class_resolution_agent_prompt(
+                prompt_factory=lambda transcript, remaining, force_finish=False, feedback=validation_feedback, _ctx=agent_context: class_resolution_agent_prompt(
                     entity=entity,
-                    context=context,
+                    context=_ctx,
                     transcript=self._augment_transcript(transcript, feedback),
                     remaining_calls=remaining,
                     force_finish=force_finish,
@@ -1777,7 +1819,7 @@ class OntologyExtractorPipeline:
                 trace_context={
                     "match_kind": "class_type_matching",
                     "entity": entity,
-                    "context": context,
+                    "context": agent_context,
                 },
             )
             class_uri = parsed.get("class_uri", "") if isinstance(parsed, dict) else ""

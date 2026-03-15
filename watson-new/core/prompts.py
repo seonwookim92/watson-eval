@@ -510,6 +510,48 @@ def ioc_prompt(candidate: str, context: str, detected_type: str = "") -> str:
     ).strip()
 
 
+def entity_pre_classification_prompt(entity: str, context: str) -> str:
+    """Returns a short ontology-friendly concept label for the entity.
+
+    The label is used as a search query against the ontology class index,
+    so it should be a generic 2-4 word concept rather than the entity name.
+    """
+    return textwrap.dedent(
+        f"""
+        You are a CTI (Cyber Threat Intelligence) entity classifier.
+        Given the entity name and its context, return a short concept label (2-4 words)
+        that best describes the TYPE of thing this entity is.
+
+        This label will be used as a semantic search query against an ontology class index.
+        Prefer generic, ontology-friendly terms — NOT the entity name itself.
+
+        Examples (entity → concept label):
+        - "Predator spyware"                      → "malware spyware"
+        - "Apple Inc."                            → "organization company"
+        - "CVE-2023-41991"                        → "vulnerability CVE identifier"
+        - "iOS 16.7"                              → "operating system software"
+        - "192.168.1.1"                           → "IP address network indicator"
+        - "Google's Threat Analysis Group (TAG)"  → "organization security team"
+        - "exploit chain"                         → "attack pattern exploit"
+        - "phishing email"                        → "attack pattern phishing message"
+        - "registry key"                          → "file system registry artifact"
+        - "SHA256 hash"                           → "file hash indicator"
+        - "Cobalt Strike"                         → "malware tool"
+        - "Microsoft Exchange"                    → "software application"
+        - "threat actor group"                    → "threat actor group"
+
+        Return JSON only:
+        {{
+          "concept": "<short concept label, 2-4 words>",
+          "reason": "<one sentence explanation>"
+        }}
+
+        Entity: {entity}
+        Context: {context}
+        """
+    ).strip()
+
+
 def type_match_select_prompt(entity: str, context: str, candidates: List[Dict[str, str]]) -> str:
     candidates_text = "\n".join(
         f"- {c['name']} ({c['uri']})" for c in candidates
