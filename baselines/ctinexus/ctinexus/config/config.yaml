@@ -7,7 +7,7 @@ api_key: ${oc.env:OPENAI_API_KEY}  # Populated from environment variable
 
 # Model Settings
 provider: OpenAI                              # AI provider (OpenAI, Gemini, AWS)
-model: gpt-4.1                               # Default model for text generation
+model: qwen3.5-35b                           # Default model for text generation
 embedding_model: text-embedding-3-large      # Model for vector embeddings
 
 # Similarity threshold for entity matching

@@ -1086,6 +1086,17 @@ class LLMCaller:
 					temperature=0.1,
 					default_api_base=ollama_base_url,
 				)
+			elif provider == "openai":
+				# OpenAI-compatible endpoint (includes vLLM). CUSTOM_BASE_URL is applied
+				# automatically by get_litellm_endpoint_overrides() inside call_litellm_completion.
+				response = call_litellm_completion(
+					model=model_id,
+					messages=[{"role": "user", "content": self.prompt[-1]["content"]}],
+					max_tokens=self.max_tokens,
+					temperature=0.7,
+					response_format={"type": "json_object"},
+					extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+				)
 			else:
 				# Use a more stable configuration for all other models
 				response = call_litellm_completion(
@@ -1093,8 +1104,6 @@ class LLMCaller:
 					messages=[{"role": "user", "content": self.prompt[-1]["content"]}],
 					max_tokens=self.max_tokens,
 					temperature=0.7,
-					# Only use json_object if we can ensure it's supported
-					# response_format={"type": "json_object"}, 
 				)
 
 			return response

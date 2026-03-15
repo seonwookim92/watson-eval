@@ -40,17 +40,7 @@ class LLMClient:
             return text
         return f"{text[:limit]}... [truncated {len(text) - limit} chars]"
 
-    def _request(self, messages: List[Dict[str, str]]) -> str:
-        if not self.thinking:
-            # Disable Qwen3 thinking mode:
-            #   /no_think in system message (chat template level)
-            #   think: false (Ollama 0.6.x+ native parameter)
-            no_think_prefix = [{"role": "system", "content": "/no_think"}]
-            if not messages or messages[0].get("role") != "system":
-                messages = no_think_prefix + messages
-            elif "/no_think" not in messages[0].get("content", ""):
-                messages = [{"role": "system", "content": "/no_think " + messages[0]["content"]}] + messages[1:]
-
+    def _request(self, messages: List[Dict[str, str]], response_format_json: bool = True) -> str:
         payload: Dict[str, Any] = {
             "model": self.model,
             "messages": messages,
@@ -60,11 +50,10 @@ class LLMClient:
             "max_tokens": self.max_tokens,
         }
         if not self.thinking:
-            payload["think"] = False  # Ollama native Qwen3 thinking disable (0.6.x+)
-        # NOTE: response_format json_object is intentionally NOT set here.
-        # Ollama's JSON grammar mode conflicts with Qwen3 thinking tokens (<think>...</think>),
-        # causing empty responses even when think=false. JSON extraction is handled by
-        # read_json_payload() which robustly parses JSON from arbitrary text output.
+            # vLLM: disable Qwen3 thinking via chat_template_kwargs
+            payload["chat_template_kwargs"] = {"enable_thinking": False}
+        if response_format_json:
+            payload["response_format"] = {"type": "json_object"}
         last_exc: Exception = RuntimeError("LLM request failed")
         for attempt in range(1, 4):
             try:
@@ -104,7 +93,7 @@ class LLMClient:
         messages = [{"role": "user", "content": prompt}]
         if extra_messages:
             messages = extra_messages + messages
-        content = self._request(messages)
+        content = self._request(messages, response_format_json=True)
         return read_json_payload(content)
 
     def chat_text(
@@ -115,7 +104,7 @@ class LLMClient:
         messages = [{"role": "user", "content": prompt}]
         if extra_messages:
             messages = extra_messages + messages
-        return self._request(messages)
+        return self._request(messages, response_format_json=False)
 
 
 class EmbeddingClient:

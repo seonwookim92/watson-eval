@@ -15,7 +15,11 @@ def get_llm(provider=None):
     
     if p == "openai":
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model=cfg["model"], api_key=cfg["api_key"])
+        kwargs = {"model": cfg["model"], "api_key": cfg["api_key"],
+                  "model_kwargs": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}}
+        if cfg.get("base_url"):
+            kwargs["base_url"] = cfg["base_url"]
+        return ChatOpenAI(**kwargs)
     elif p == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(model=cfg["model"], google_api_key=cfg["api_key"])

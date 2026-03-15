@@ -169,7 +169,11 @@ class LLMMatcher:
         # temperature=0: deterministic output, no randomness in judgment
         if provider == "openai":
             from langchain_openai import ChatOpenAI
-            self.llm = ChatOpenAI(model=model, api_key=api_key, temperature=0)
+            kwargs = {"model": model, "api_key": api_key, "temperature": 0,
+                      "model_kwargs": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}}
+            if base_url:
+                kwargs["base_url"] = base_url
+            self.llm = ChatOpenAI(**kwargs)
         elif provider == "gemini":
             from langchain_google_genai import ChatGoogleGenerativeAI
             self.llm = ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=0)

@@ -14,6 +14,7 @@ class Config:
     LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
     OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o")
+    OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
 
     # Gemini (Google) Settings
     GOOGLE_API_KEY = os.getenv("GOOGLE_API_KEY")
@@ -32,7 +33,10 @@ class Config:
     def get_provider_config(cls, provider=None):
         p = provider or cls.LLM_PROVIDER
         if p == "openai":
-            return {"model": cls.OPENAI_MODEL, "api_key": cls.OPENAI_API_KEY}
+            cfg = {"model": cls.OPENAI_MODEL, "api_key": cls.OPENAI_API_KEY}
+            if cls.OPENAI_BASE_URL:
+                cfg["base_url"] = cls.OPENAI_BASE_URL
+            return cfg
         elif p == "gemini":
             return {"model": cls.GOOGLE_MODEL, "api_key": cls.GOOGLE_API_KEY}
         elif p == "claude":

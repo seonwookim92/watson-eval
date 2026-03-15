@@ -53,8 +53,13 @@ def extract_triples_gtikg(text, model="gpt-4o-mini", provider="openai"):
             "messages": promptmessage,
             "temperature": 0.0
         }
-        
-        if provider == "ollama":
+
+        if provider == "openai":
+            openai_base_url = os.getenv("OPENAI_BASE_URL", "")
+            if openai_base_url:
+                completion_kwargs["api_base"] = openai_base_url
+                completion_kwargs["api_key"] = os.getenv("OPENAI_API_KEY", "dummy")
+        elif provider == "ollama":
             completion_kwargs["api_base"] = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
         response = litellm.completion(**completion_kwargs)

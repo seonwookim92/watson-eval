@@ -76,3 +76,7 @@ baselines/*/*.onnx
 analyzer/input/*
 !analyzer/input/.gitkeep
 analyzer/mcp/.gitkeep
+
+# Watson-new
+watson-new/run*
+watson-new/chrome.sqlite3

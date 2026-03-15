@@ -127,7 +127,11 @@ class EmbeddingMatcher:
 def _build_llm(provider: str, model: str, base_url: str = None):
     if provider == "openai":
         from langchain_openai import ChatOpenAI
-        return ChatOpenAI(model=model, api_key=os.getenv("OPENAI_API_KEY"), temperature=0)
+        kwargs = {"model": model, "api_key": os.getenv("OPENAI_API_KEY", "dummy"), "temperature": 0,
+                  "model_kwargs": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}}
+        if base_url:
+            kwargs["base_url"] = base_url
+        return ChatOpenAI(**kwargs)
     elif provider == "gemini":
         from langchain_google_genai import ChatGoogleGenerativeAI
         return ChatGoogleGenerativeAI(
@@ -503,7 +507,7 @@ async def main() -> None:
     gt_map = {s["id"]: s for s in load_ctinexus(args.ground_truth)}
 
     emb = EmbeddingMatcher(threshold=args.threshold)
-    llm = _build_llm(llm_provider, llm_model, args.llm_base_url)
+    llm = _build_llm(llm_provider, llm_model, llm_base_url)
 
     if args.limit:
         extracted = extracted[:args.limit]
