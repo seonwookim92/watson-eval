@@ -1675,6 +1675,7 @@ class OntologyExtractorPipeline:
             "get_class_hierarchy",
             "get_class_details",
             "list_available_facets",
+            "drill_into_classes",
         }
         validation_feedback = ""
         class_uri = ""

@@ -681,7 +681,7 @@ def class_resolution_agent_prompt(
         - If a candidate class seems plausible, inspect subclasses before finalizing.
         - If subclasses do not fit, you may return to a broader parent or explore a different branch.
         - Prefer the most specific accurate class, but if no specific subclass fits, return the best broader class.
-        - Only use these tools: search_classes, list_root_classes, list_subclasses, get_class_hierarchy, get_class_details, list_available_facets.
+        - Only use these tools: search_classes, list_root_classes, list_subclasses, get_class_hierarchy, get_class_details, list_available_facets, drill_into_classes.
         - {finish_rule}
 
         Tool argument schema:
@@ -691,6 +691,13 @@ def class_resolution_agent_prompt(
         - get_class_hierarchy: {{"class_uri": "<class URI>"}}
         - get_class_details: {{"class_uri": "<class URI>"}}
         - list_available_facets: {{"class_uri": "<class URI>"}}
+        - drill_into_classes: {{"query": "<concept label>", "class_uri": "<URI to expand, or omit to start from roots>"}}
+
+        When to use drill_into_classes:
+        - Use it when search_classes scores are all below 0.5 or the top result doesn't clearly match.
+        - Start with only `query` (no class_uri) to see root classes and their descriptions.
+        - Then call again with the chosen class_uri to go one level deeper.
+        - It shows raw class names and descriptions so YOU decide which branch to follow.
 
         Never invent argument names. In particular, NEVER use:
         - parent_class
@@ -711,6 +718,7 @@ def class_resolution_agent_prompt(
           2. inspect the strongest plausible candidate
           3. inspect subclasses of that candidate if any may exist
           4. compare at least one alternative branch if the first candidate is generic or uncertain
+        - If search_classes scores are uniformly low (< 0.5), switch to drill_into_classes to navigate hierarchically.
         - If a previous tool call failed with a validation error, treat that as evidence that the argument schema was wrong and correct it before continuing.
         - Repeating the same invalid call is a reasoning failure.
 
