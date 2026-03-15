@@ -2006,6 +2006,79 @@ class OntologyExtractorPipeline:
                 return True
         return False
 
+    _UNTYPED_PREDICATE_CONFIDENCE_THRESHOLD = 0.6
+
+    def _match_predicate_uri_untyped(self, predicate: str) -> str:
+        """방안 6: subject entity type이 없을 때의 fallback predicate matching.
+
+        Runs search_properties with the predicate string, then asks the LLM
+        to select the best candidate using predicate_match_select_prompt.
+        A lower confidence threshold (0.6) is used since domain/range
+        information is unavailable.
+
+        Results are cached by normalised predicate string to avoid
+        redundant calls for the same relation phrase across triplets.
+        """
+        predicate_key = predicate.strip().casefold()
+        with self._cache_lock:
+            if predicate_key in self._untyped_predicate_cache:
+                return self._untyped_predicate_cache[predicate_key]
+
+        mcp = self._try_create_mcp()
+        if mcp is None:
+            return ""
+
+        result = ""
+        try:
+            with mcp:
+                raw = self._call_mcp_tool(
+                    mcp, "search_properties", {"query": predicate}, "property_matching",
+                    trace_context={
+                        "match_kind": "predicate_untyped_fallback",
+                        "predicate": predicate,
+                    },
+                )
+                candidates = self._parse_search_properties_result(raw)
+                if candidates:
+                    parsed = self.llm.chat_json(
+                        predicate_match_select_prompt(
+                            subject="(unknown)",
+                            subject_class="(unknown)",
+                            predicate=predicate,
+                            obj="(unknown)",
+                            obj_class="(unknown)",
+                            properties=candidates,
+                        ),
+                        trace_context={
+                            "match_kind": "predicate_untyped_fallback_select",
+                            "predicate": predicate,
+                        },
+                    )
+                    if isinstance(parsed, dict):
+                        prop_uri = parsed.get("property_uri", "").strip()
+                        confidence = float(parsed.get("confidence", 0.0))
+                        if confidence >= self._UNTYPED_PREDICATE_CONFIDENCE_THRESHOLD and prop_uri:
+                            is_valid, _ = self._validate_property_uri(
+                                prop_uri, expect_data_property=False
+                            )
+                            if is_valid:
+                                self._log(
+                                    logging.INFO,
+                                    "[predicate_untyped] '%s' -> '%s' conf=%.2f",
+                                    predicate, prop_uri, confidence,
+                                )
+                                result = prop_uri
+        except Exception as e:
+            self._log(
+                logging.WARNING,
+                "[predicate_untyped] failed for '%s': %s",
+                predicate, e,
+            )
+
+        with self._cache_lock:
+            self._untyped_predicate_cache[predicate_key] = result
+        return result
+
     def _match_predicate_uri(
         self,
         subject: str,
@@ -2019,6 +2092,13 @@ class OntologyExtractorPipeline:
         with self._cache_lock:
             if cache_key in self._predicate_uri_cache:
                 return self._predicate_uri_cache[cache_key]
+
+        # 방안 6: cascading 차단 해제 — entity type matching 실패해도 predicate 탐색 시도
+        if not subject_class_uri:
+            result = self._match_predicate_uri_untyped(predicate)
+            with self._cache_lock:
+                self._predicate_uri_cache[cache_key] = result
+            return result
 
         max_calls = int(self.config["mcp"]["max_tool_calls_property_matching"])
         validation_feedback = ""
