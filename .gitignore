@@ -79,4 +79,5 @@ analyzer/mcp/.gitkeep
 
 # Watson-new
 watson-new/run*
-watson-new/chrome.sqlite3
+**/*.pkl
+**/chroma.sqlite3

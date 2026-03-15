@@ -22,12 +22,13 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote, unquote, urlparse
+from uuid import uuid4
 
 import requests
 from langgraph.graph import END, StateGraph
 from typing_extensions import TypedDict
 
-from .clients import EmbeddingClient, LLMClient, MCPStdioClient
+from .clients import EmbeddingClient, LLMClient, MCPStdioClient, build_embedding_client
 from .config import load_config
 from .prompts import (
     class_resolution_agent_prompt,
@@ -52,6 +53,7 @@ from .prompts import (
     paraphrase_stage4_retry_prompt,
     paraphrase_stage4_verify_prompt,
     predicate_match_select_prompt,
+    predicate_query_expansion_prompt,
     triplet_prompt,
     type_match_select_prompt,
 )
@@ -75,6 +77,40 @@ class PipelineState(TypedDict):
 
 
 class OntologyConstraintChecker:
+    @staticmethod
+    def _detect_format(schema_path: Path) -> Optional[str]:
+        return {
+            ".ttl": "ttl",
+            ".owl": "xml",
+            ".rdf": "xml",
+        }.get(schema_path.suffix.lower())
+
+    def _collect_ontology_files(self, schema_path: Path) -> List[Tuple[Path, str]]:
+        files: List[Tuple[Path, str]] = []
+        if schema_path.is_dir():
+            for pattern, fmt in (("**/*.ttl", "ttl"), ("**/*.owl", "xml"), ("**/*.rdf", "xml")):
+                for file_path in sorted(schema_path.glob(pattern)):
+                    files.append((file_path, fmt))
+            return files
+
+        fmt = self._detect_format(schema_path)
+        if fmt:
+            files.append((schema_path, fmt))
+
+        # STIX-style master ontologies often import many sibling OWL files via a local XML catalog.
+        # Parse the containing ontology directory as well so class/property counts reflect the full schema.
+        parent = schema_path.parent
+        if (parent / "catalog-v001.xml").exists():
+            seen = {item[0].resolve() for item in files}
+            for pattern, fmt in (("**/*.ttl", "ttl"), ("**/*.owl", "xml"), ("**/*.rdf", "xml")):
+                for file_path in sorted(parent.glob(pattern)):
+                    resolved = file_path.resolve()
+                    if resolved in seen:
+                        continue
+                    files.append((file_path, fmt))
+                    seen.add(resolved)
+        return files
+
     def __init__(self, ontology_schema_file: str, logger: logging.Logger) -> None:
         self.logger = logger
         self.available = False
@@ -86,20 +122,19 @@ class OntologyConstraintChecker:
 
             graph = Graph()
             schema_path = Path(ontology_schema_file).resolve()
-            if schema_path.is_dir():
-                files: List[Tuple[str, str]] = []
-                for pattern, fmt in (("**/*.ttl", "ttl"), ("**/*.owl", "xml"), ("**/*.rdf", "xml")):
-                    for file_path in glob(str(schema_path / pattern), recursive=True):
-                        files.append((file_path, fmt))
-                if not files:
-                    raise FileNotFoundError(f"No ontology files found under schema directory: {schema_path}")
-                for file_path, fmt in files:
-                    graph.parse(file_path, format=fmt)
-            else:
-                graph.parse(str(schema_path))
+            files = self._collect_ontology_files(schema_path)
+            if not files:
+                raise FileNotFoundError(f"No ontology files found under schema path: {schema_path}")
+            for file_path, fmt in files:
+                graph.parse(str(file_path), format=fmt)
             self._rdf = {"RDF": RDF, "RDFS": RDFS, "OWL": OWL, "URIRef": URIRef}
 
-            for cls in graph.subjects(RDF.type, OWL.Class):
+            named_classes = {
+                cls for cls in
+                set(graph.subjects(RDF.type, OWL.Class)) | set(graph.subjects(RDF.type, RDFS.Class))
+                if isinstance(cls, URIRef)
+            }
+            for cls in named_classes:
                 cls_uri = str(cls)
                 self.class_parents.setdefault(cls_uri, set())
                 for parent in graph.objects(cls, RDFS.subClassOf):
@@ -214,6 +249,9 @@ class OntologyExtractorPipeline:
 
         log_path = self.run_root / "run.log"
         self.logger = setup_logger(log_path)
+        self.trace_dir = self.run_root / "traces"
+        self.trace_dir.mkdir(parents=True, exist_ok=True)
+        self.mcp_trace_path = self.trace_dir / "mcp_agent_full.jsonl"
 
         self.llm = LLMClient(
             self.config["llm"]["base_url"],
@@ -221,11 +259,13 @@ class OntologyExtractorPipeline:
             max_tokens=int(self.config["llm"].get("max_tokens", 4096)),
             thinking=bool(self.config["llm"].get("thinking", False)),
             logger=self.logger,
+            tracer=self._trace_llm_event,
         )
-        self.embedding = EmbeddingClient(
-            self.config["embedding"]["base_url"],
-            self.config["embedding"]["model"],
-            self.config["embedding"]["truncate_prompt_tokens"],
+        self.embedding = build_embedding_client(
+            mode=str(self.config["embedding"].get("mode", "local")),
+            base_url=str(self.config["embedding"].get("base_url", "")),
+            model=self.config["embedding"]["model"],
+            truncate_prompt_tokens=self.config["embedding"]["truncate_prompt_tokens"],
             api_key=self.config["embedding"].get("api_key", ""),
         )
         self.ontology_checker = OntologyConstraintChecker(self.ontology_schema_file, self.logger)
@@ -253,6 +293,7 @@ class OntologyExtractorPipeline:
         self._ioc_type_class_cache: Dict[str, Tuple[str, str]] = {}
         self._literal_check_cache: Dict[Tuple[str, str], Tuple[bool, str]] = {}
         self._predicate_uri_cache: Dict[Tuple[str, str, str], str] = {}
+        self._predicate_query_cache: Dict[Tuple[str, str, str], List[str]] = {}
 
         # iocsearcher: lazy-init once, reused across all _ioc_matches calls
         self._ioc_searcher: Any = None
@@ -262,6 +303,7 @@ class OntologyExtractorPipeline:
         self._cache_lock = threading.Lock()
         self._mcp_count_lock = threading.Lock()
         self._progress_lock = threading.Lock()
+        self._trace_lock = threading.Lock()
         self._type_matching_totals: Dict[str, int] = {
             "triplets": 0,
             "entity_slots": 0,
@@ -300,6 +342,40 @@ class OntologyExtractorPipeline:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as f:
             json.dump(payload, f, ensure_ascii=False, indent=2)
+
+    def _append_jsonl(self, path: Path, payload: Dict[str, Any]) -> None:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(payload, ensure_ascii=False)
+        with self._trace_lock:
+            with path.open("a", encoding="utf-8") as f:
+                f.write(line)
+                f.write("\n")
+
+    def _sanitize_trace_value(self, value: Any) -> Any:
+        if isinstance(value, Path):
+            return str(value)
+        if isinstance(value, (str, int, float, bool)) or value is None:
+            return value
+        if isinstance(value, dict):
+            return {str(k): self._sanitize_trace_value(v) for k, v in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [self._sanitize_trace_value(item) for item in value]
+        return str(value)
+
+    def _trace_event(self, event: str, **payload: Any) -> None:
+        record = {
+            "timestamp": to_iso_now(),
+            "run_id": self.run_root.name,
+            "event": event,
+            **{key: self._sanitize_trace_value(value) for key, value in payload.items()},
+        }
+        self._append_jsonl(self.mcp_trace_path, record)
+
+    def _trace_llm_event(self, payload: Dict[str, Any]) -> None:
+        event = str(payload.get("event", "llm_exchange"))
+        trace_payload = dict(payload)
+        trace_payload.pop("event", None)
+        self._trace_event(event, **trace_payload)
 
     def _read_text(self, path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="ignore")
@@ -1430,13 +1506,7 @@ class OntologyExtractorPipeline:
                 row["predicate"], row["object"], obj_class_uri,
             )
         else:
-            literal_flag, candidate_pred_uri = self._check_is_literal(
-                row["subject"], row["id"], subj_class_uri, row["predicate"], row["object"]
-            )
-            if literal_flag:
-                object_is_literal = True
-                pred_uri = candidate_pred_uri
-            else:
+            if self._should_attempt_object_property_first(row):
                 obj_class_uri, obj_class_name = self._match_entity_class(
                     mcp, row["object"], object_context
                 )
@@ -1444,6 +1514,21 @@ class OntologyExtractorPipeline:
                     row["subject"], row["id"], subj_class_uri,
                     row["predicate"], row["object"], obj_class_uri,
                 )
+            else:
+                literal_flag, candidate_pred_uri = self._check_is_literal(
+                    row["subject"], row["id"], subj_class_uri, row["predicate"], row["object"]
+                )
+                if literal_flag:
+                    object_is_literal = True
+                    pred_uri = candidate_pred_uri
+                else:
+                    obj_class_uri, obj_class_name = self._match_entity_class(
+                        mcp, row["object"], object_context
+                    )
+                    pred_uri = self._match_predicate_uri(
+                        row["subject"], row["id"], subj_class_uri,
+                        row["predicate"], row["object"], obj_class_uri,
+                    )
 
         typed_row = {
             "id": row["id"],
@@ -1507,6 +1592,7 @@ class OntologyExtractorPipeline:
                 server_script,
                 self.ontology_schema_file,
                 self.logger,
+                embedding_mode=str(self.config["embedding"].get("mode", "local")),
                 embedding_base_url=str(self.config["embedding"].get("base_url", "")),
                 embedding_model=str(self.config["embedding"].get("model", "")),
                 embedding_api_key=str(self.config["embedding"].get("api_key", "")),
@@ -1606,6 +1692,11 @@ class OntologyExtractorPipeline:
                 allowed_tools=allowed_tools,
                 max_calls=max_per_entity,
                 counter_key="type_matching",
+                trace_context={
+                    "match_kind": "class_type_matching",
+                    "entity": entity,
+                    "context": context,
+                },
             )
             class_uri = parsed.get("class_uri", "") if isinstance(parsed, dict) else ""
             class_name = parsed.get("class_name", "") if isinstance(parsed, dict) else ""
@@ -1667,6 +1758,15 @@ class OntologyExtractorPipeline:
                 max_calls=max_calls,
                 counter_key="property_matching",
                 subject_entity_id=self._temp_mcp_entity_id(row_id, "subject"),
+                trace_context={
+                    "match_kind": "relationship_type_matching",
+                    "property_mode": "data_property",
+                    "row_id": row_id,
+                    "subject": subject,
+                    "subject_class_uri": subject_class_uri,
+                    "predicate": predicate,
+                    "object": obj,
+                },
             )
             prop_uri = parsed.get("property_uri", "") if isinstance(parsed, dict) else ""
             if prop_uri and not self._response_uri_seen(prop_uri, parsed.get("_transcript", "")):
@@ -1692,6 +1792,96 @@ class OntologyExtractorPipeline:
             self._literal_check_cache[cache_key] = result
         return result
 
+    def _predicate_query_variants(
+        self,
+        subject: str,
+        predicate: str,
+        obj: str,
+        subject_class_uri: str,
+        obj_class_uri: str,
+    ) -> List[str]:
+        cache_key = (
+            subject_class_uri or "",
+            predicate.strip().casefold(),
+            obj_class_uri or "",
+        )
+        with self._cache_lock:
+            cached = self._predicate_query_cache.get(cache_key)
+        if cached is not None:
+            return cached
+
+        variants: List[str] = []
+        base = predicate.strip()
+        if base:
+            variants.append(base)
+
+        try:
+            parsed = self.llm.chat_json(
+                predicate_query_expansion_prompt(
+                    subject=subject,
+                    predicate=predicate,
+                    obj=obj,
+                    subject_class_uri=subject_class_uri,
+                    object_class_uri=obj_class_uri,
+                ),
+                trace_context={
+                    "event": "predicate_query_expansion",
+                    "subject": subject,
+                    "predicate": predicate,
+                    "object": obj,
+                    "subject_class_uri": subject_class_uri,
+                    "object_class_uri": obj_class_uri,
+                },
+            )
+            queries = parsed.get("queries", []) if isinstance(parsed, dict) else []
+            if isinstance(queries, list):
+                for item in queries:
+                    if isinstance(item, str) and item.strip():
+                        variants.append(item.strip())
+        except Exception as e:
+            self._log(
+                logging.WARNING,
+                "[MCP-Agent][property_matching] predicate query expansion failed for '%s': %s",
+                predicate,
+                e,
+            )
+
+        normalized: List[str] = []
+        seen: set[str] = set()
+        for item in variants:
+            key = item.casefold()
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append(item)
+            if len(normalized) >= 5:
+                break
+        if not normalized and base:
+            normalized = [base]
+
+        with self._cache_lock:
+            self._predicate_query_cache[cache_key] = normalized
+        return normalized
+
+    def _should_attempt_object_property_first(self, row: Dict[str, Any]) -> bool:
+        if row.get("isObjectIoC"):
+            return True
+        if row.get("object_description"):
+            return True
+
+        chunk_name = str(row.get("source_chunk", "")).strip()
+        object_name = str(row.get("object", "")).strip()
+        if not chunk_name or not object_name:
+            return False
+
+        target = self._normalize_entity_key(object_name)
+        if not target:
+            return False
+        for item in self.entities_by_chunk.get(chunk_name, []):
+            if self._normalize_entity_key(item.get("name", "")) == target:
+                return True
+        return False
+
     def _match_predicate_uri(
         self,
         subject: str,
@@ -1709,6 +1899,13 @@ class OntologyExtractorPipeline:
         max_calls = int(self.config["mcp"]["max_tool_calls_property_matching"])
         validation_feedback = ""
         result = ""
+        predicate_queries = self._predicate_query_variants(
+            subject=subject,
+            predicate=predicate,
+            obj=obj,
+            subject_class_uri=subject_class_uri,
+            obj_class_uri=obj_class_uri,
+        )
         for _ in range(3):
             parsed = self._run_property_agent_with_temp_entities(
                 subject_class_uri=subject_class_uri,
@@ -1721,6 +1918,7 @@ class OntologyExtractorPipeline:
                     obj=obj,
                     obj_class_uri=obj_class_uri,
                     object_entity_uri=temp_object_uri,
+                    predicate_queries=predicate_queries,
                     transcript=self._augment_transcript(transcript, feedback),
                     remaining_calls=remaining,
                     force_finish=force_finish,
@@ -1730,6 +1928,16 @@ class OntologyExtractorPipeline:
                 counter_key="property_matching",
                 subject_entity_id=self._temp_mcp_entity_id(row_id, "subject"),
                 object_entity_id=self._temp_mcp_entity_id(row_id, "object"),
+                trace_context={
+                    "match_kind": "relationship_type_matching",
+                    "property_mode": "object_property",
+                    "row_id": row_id,
+                    "subject": subject,
+                    "subject_class_uri": subject_class_uri,
+                    "predicate": predicate,
+                    "object": obj,
+                    "object_class_uri": obj_class_uri,
+                },
             )
             result = parsed.get("property_uri", "") if isinstance(parsed, dict) else ""
             if result and not self._response_uri_seen(result, parsed.get("_transcript", "")):
@@ -1754,11 +1962,29 @@ class OntologyExtractorPipeline:
         allowed_tools: set,
         max_calls: int,
         counter_key: str,
+        trace_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         transcript_entries: List[Dict[str, Any]] = []
+        session_id = uuid4().hex
+        base_trace = {
+            "agent_session_id": session_id,
+            "counter_key": counter_key,
+            "allowed_tools": sorted(allowed_tools),
+            "max_calls": max_calls,
+            **(trace_context or {}),
+        }
+        self._trace_event("agent_session_start", **base_trace)
         for call_index in range(max_calls):
             remaining = max_calls - call_index
             prompt = prompt_factory(self._format_agent_transcript(transcript_entries), remaining, False)
+            step_trace = {
+                **base_trace,
+                "step": call_index + 1,
+                "remaining_calls": remaining,
+                "prompt": prompt,
+                "transcript_before_step": self._format_agent_transcript(transcript_entries),
+            }
+            self._trace_event("agent_prompt", **step_trace)
             self._log(
                 logging.INFO,
                 "[MCP-Agent][%s][step %s/%s] Prompt:\n%s",
@@ -1767,7 +1993,21 @@ class OntologyExtractorPipeline:
                 max_calls,
                 self._truncate_for_log(prompt),
             )
-            parsed = self.llm.chat_json(prompt)
+            parsed = self.llm.chat_json(
+                prompt,
+                trace_context={
+                    **base_trace,
+                    "step": call_index + 1,
+                    "remaining_calls": remaining,
+                },
+            )
+            self._trace_event(
+                "agent_llm_parsed",
+                **base_trace,
+                step=call_index + 1,
+                remaining_calls=remaining,
+                parsed=parsed,
+            )
             self._log(
                 logging.INFO,
                 "[MCP-Agent][%s][step %s/%s] LLM response: %s",
@@ -1781,12 +2021,40 @@ class OntologyExtractorPipeline:
             action = str(parsed.get("action", "finish")).strip().lower()
             if action == "finish":
                 parsed["_transcript"] = self._format_agent_transcript(transcript_entries)
+                self._trace_event(
+                    "agent_finish",
+                    **base_trace,
+                    step=call_index + 1,
+                    remaining_calls=remaining,
+                    parsed=parsed,
+                )
+                self._trace_event(
+                    "agent_session_end",
+                    **base_trace,
+                    final_response=parsed,
+                    transcript=parsed["_transcript"],
+                )
                 return parsed
             if action != "call_tool":
+                self._trace_event(
+                    "agent_invalid_action",
+                    **base_trace,
+                    step=call_index + 1,
+                    remaining_calls=remaining,
+                    parsed=parsed,
+                )
                 break
 
             tool = str(parsed.get("tool", "")).strip()
             if tool not in allowed_tools:
+                self._trace_event(
+                    "agent_tool_rejected",
+                    **base_trace,
+                    step=call_index + 1,
+                    remaining_calls=remaining,
+                    tool=tool or "<invalid>",
+                    arguments=parsed.get("arguments", {}),
+                )
                 transcript_entries.append({
                     "tool": tool or "<invalid>",
                     "arguments": parsed.get("arguments", {}),
@@ -1800,6 +2068,14 @@ class OntologyExtractorPipeline:
             try:
                 with self._mcp_count_lock:
                     self.mcp_call_count[counter_key] += 1
+                self._trace_event(
+                    "agent_tool_call",
+                    **base_trace,
+                    step=call_index + 1,
+                    remaining_calls=remaining,
+                    tool=tool,
+                    arguments=arguments,
+                )
                 self._log(
                     logging.INFO,
                     "[MCP-Agent][%s][step %s/%s] Tool call: %s %s",
@@ -1812,6 +2088,15 @@ class OntologyExtractorPipeline:
                 result = mcp.call_tool(tool, arguments)
             except Exception as e:
                 result = f"ERROR: {e}"
+            self._trace_event(
+                "agent_tool_result",
+                **base_trace,
+                step=call_index + 1,
+                remaining_calls=remaining,
+                tool=tool,
+                arguments=arguments,
+                result=result,
+            )
             self._log(
                 logging.INFO,
                 "[MCP-Agent][%s][step %s/%s] Tool result from %s:\n%s",
@@ -1828,13 +2113,36 @@ class OntologyExtractorPipeline:
             })
 
         final_prompt = prompt_factory(self._format_agent_transcript(transcript_entries), 0, True)
+        self._trace_event(
+            "agent_final_prompt",
+            **base_trace,
+            step=max_calls + 1,
+            remaining_calls=0,
+            prompt=final_prompt,
+            transcript_before_step=self._format_agent_transcript(transcript_entries),
+        )
         self._log(
             logging.INFO,
             "[MCP-Agent][%s][final] Prompt:\n%s",
             counter_key,
             self._truncate_for_log(final_prompt),
         )
-        parsed = self.llm.chat_json(final_prompt)
+        parsed = self.llm.chat_json(
+            final_prompt,
+            trace_context={
+                **base_trace,
+                "step": max_calls + 1,
+                "remaining_calls": 0,
+                "phase": "final",
+            },
+        )
+        self._trace_event(
+            "agent_final_llm_parsed",
+            **base_trace,
+            step=max_calls + 1,
+            remaining_calls=0,
+            parsed=parsed,
+        )
         self._log(
             logging.INFO,
             "[MCP-Agent][%s][final] LLM response: %s",
@@ -1844,6 +2152,12 @@ class OntologyExtractorPipeline:
         if not isinstance(parsed, dict):
             parsed = {}
         parsed["_transcript"] = self._format_agent_transcript(transcript_entries)
+        self._trace_event(
+            "agent_session_end",
+            **base_trace,
+            final_response=parsed,
+            transcript=parsed["_transcript"],
+        )
         return parsed
 
     @staticmethod
@@ -1860,9 +2174,18 @@ class OntologyExtractorPipeline:
         tool: str,
         arguments: Dict[str, Any],
         counter_key: str,
+        trace_context: Optional[Dict[str, Any]] = None,
     ) -> str:
         with self._mcp_count_lock:
             self.mcp_call_count[counter_key] += 1
+        if trace_context:
+            self._trace_event(
+                "agent_setup_tool_call",
+                counter_key=counter_key,
+                tool=tool,
+                arguments=arguments,
+                **trace_context,
+            )
         self._log(
             logging.INFO,
             "[MCP-Agent][%s][setup] Tool call: %s %s",
@@ -1871,6 +2194,15 @@ class OntologyExtractorPipeline:
             self._truncate_for_log(json.dumps(arguments, ensure_ascii=False)),
         )
         result = mcp.call_tool(tool, arguments)
+        if trace_context:
+            self._trace_event(
+                "agent_setup_tool_result",
+                counter_key=counter_key,
+                tool=tool,
+                arguments=arguments,
+                result=result,
+                **trace_context,
+            )
         self._log(
             logging.INFO,
             "[MCP-Agent][%s][setup] Tool result from %s:\n%s",
@@ -1890,6 +2222,7 @@ class OntologyExtractorPipeline:
         counter_key: str,
         subject_entity_id: str,
         object_entity_id: str = "",
+        trace_context: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         if not subject_class_uri:
             return {}
@@ -1901,6 +2234,13 @@ class OntologyExtractorPipeline:
 
         temp_subject_uri = self._temp_mcp_entity_uri(subject_entity_id)
         temp_object_uri = self._temp_mcp_entity_uri(object_entity_id) if object_entity_id else ""
+        setup_trace = {
+            "subject_entity_id": subject_entity_id,
+            "subject_entity_uri": temp_subject_uri,
+            "object_entity_id": object_entity_id,
+            "object_entity_uri": temp_object_uri,
+            **(trace_context or {}),
+        }
         try:
             with mcp:
                 self._call_mcp_tool(
@@ -1908,6 +2248,7 @@ class OntologyExtractorPipeline:
                     "create_entity",
                     {"entity_id": subject_entity_id, "class_uris": [subject_class_uri]},
                     counter_key,
+                    trace_context=setup_trace,
                 )
                 if object_entity_id and object_class_uri:
                     self._call_mcp_tool(
@@ -1915,6 +2256,7 @@ class OntologyExtractorPipeline:
                         "create_entity",
                         {"entity_id": object_entity_id, "class_uris": [object_class_uri]},
                         counter_key,
+                        trace_context=setup_trace,
                     )
                 return self._run_mcp_agent_loop(
                     mcp=mcp,
@@ -1928,6 +2270,7 @@ class OntologyExtractorPipeline:
                     allowed_tools=allowed_tools,
                     max_calls=max_calls,
                     counter_key=counter_key,
+                    trace_context=setup_trace,
                 )
         except Exception as e:
             self._log(logging.ERROR, "[MCP-Agent][%s] temporary graph setup failed: %s", counter_key, e)

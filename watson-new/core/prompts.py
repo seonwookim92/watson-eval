@@ -604,6 +604,40 @@ def predicate_match_select_prompt(
     ).strip()
 
 
+def predicate_query_expansion_prompt(
+    subject: str,
+    predicate: str,
+    obj: str,
+    subject_class_uri: str = "",
+    object_class_uri: str = "",
+) -> str:
+    return textwrap.dedent(
+        f"""
+        You are helping with ontology property retrieval.
+        Generate up to 5 short English query variants for the predicate below so they are easier
+        to match against ontology property labels.
+
+        Rules:
+        - Preserve the original relationship meaning.
+        - Do NOT reverse direction.
+        - Prefer short ontology-friendly verb phrases.
+        - Each query should express one concept only.
+        - Do not add explanations.
+
+        Return JSON:
+        {{
+          "queries": ["<query1>", "<query2>", "<query3>"]
+        }}
+
+        Subject: {subject}
+        Subject class URI: {subject_class_uri or "unknown"}
+        Predicate: {predicate}
+        Object: {obj}
+        Object class URI: {object_class_uri or "unknown"}
+        """
+    ).strip()
+
+
 def entity_resolution_prompt(entity_a: str, entity_b: str, class_name: str) -> str:
     return textwrap.dedent(
         f"""
@@ -813,6 +847,7 @@ def object_property_resolution_agent_prompt(
     obj: str,
     obj_class_uri: str,
     object_entity_uri: str,
+    predicate_queries: List[str],
     transcript: str,
     remaining_calls: int,
     force_finish: bool = False,
@@ -858,13 +893,19 @@ def object_property_resolution_agent_prompt(
         - `recommend_relation` is domain/range-aware and should be the primary tool.
         - `search_properties` only accepts a text query. It does NOT support domain/range filters.
         - Use `search_properties` as a fallback or to inspect alternatives after `recommend_relation`.
+        - Use the provided normalized predicate queries before inventing new wording.
         - Before finishing, try direct property search with a reasonable query and inspect class details/facets when the recommendation is weak or empty.
         - Do not finish immediately after one failed search if a simple alternative wording is still available.
         - If a previous tool call failed with a validation error, correct the argument schema before continuing.
         - Repeating the same invalid call is a reasoning failure.
+        - If no exact lexical match exists but a schema-valid candidate is semantically close, choose that candidate instead of returning empty.
+        - Never choose a property outside the schema-valid candidates surfaced by the tools.
 
         Tool transcript so far:
         {transcript}
+
+        Normalized predicate queries to try in order:
+        {json.dumps(predicate_queries, ensure_ascii=False)}
 
         Return JSON in one of these forms:
 

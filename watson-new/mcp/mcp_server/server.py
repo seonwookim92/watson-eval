@@ -11,7 +11,7 @@ import logging
 
 # Score adjustment constants for search and ranking
 KEYWORD_BONUS = 0.3            # Bonus when query is found verbatim in name/comment
-SEMANTIC_MATCH_THRESHOLD = 0.6 # Minimum semantic score to include a property result
+SEMANTIC_MATCH_THRESHOLD = 0.45 # Minimum semantic score for global property search results
 DATATYPE_MATCH_BOOST = 0.2     # Boost when property range matches inferred value type
 DIRECT_RELATION_BOOST = 0.1    # Boost for directly defined object properties
 INVERSE_RELATION_PENALTY = 0.05  # Penalty for inverse (reversed-direction) relations
