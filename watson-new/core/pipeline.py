@@ -294,6 +294,7 @@ class OntologyExtractorPipeline:
         self._literal_check_cache: Dict[Tuple[str, str], Tuple[bool, str]] = {}
         self._predicate_uri_cache: Dict[Tuple[str, str, str], str] = {}
         self._predicate_query_cache: Dict[Tuple[str, str, str], List[str]] = {}
+        self._untyped_predicate_cache: Dict[str, str] = {}
 
         # iocsearcher: lazy-init once, reused across all _ioc_matches calls
         self._ioc_searcher: Any = None
@@ -1659,6 +1660,77 @@ class OntologyExtractorPipeline:
         self.report_root["class_uri"] = class_uri
         self.report_root["class_name"] = class_name
 
+    @staticmethod
+    def _parse_search_classes_result(text: str) -> List[Dict[str, str]]:
+        """Parse the text output of the search_classes MCP tool into [{name, uri}] list."""
+        candidates: List[Dict[str, str]] = []
+        for block in re.split(r"\n(?=\d+\.)", text):
+            name_m = re.match(r"\d+\.\s+(.+?)\s*\(Sim:", block)
+            uri_m = re.search(r"URI:\s*(https?://\S+)", block)
+            if name_m and uri_m:
+                candidates.append({
+                    "name": name_m.group(1).strip(),
+                    "uri": uri_m.group(1).strip().rstrip(")"),
+                })
+        return candidates
+
+    @staticmethod
+    def _parse_search_properties_result(text: str) -> List[Dict[str, str]]:
+        """Parse the text output of the search_properties MCP tool into [{name, uri}] list."""
+        candidates: List[Dict[str, str]] = []
+        for line in text.splitlines():
+            m = re.match(r"-\s+(.+?)\s+\((https?://\S+)\)\s+\[Sim:", line.strip())
+            if m:
+                candidates.append({
+                    "name": m.group(1).strip(),
+                    "uri": m.group(2).strip().rstrip(")"),
+                })
+        return candidates
+
+    _QUICK_TYPE_MATCH_CONFIDENCE_THRESHOLD = 0.75
+
+    def _quick_type_match(
+        self,
+        mcp: MCPStdioClient,
+        entity: str,
+        context: str,
+        search_query: str,
+    ) -> Tuple[str, str]:
+        """1차 패스: search_classes → type_match_select_prompt 1-shot.
+
+        Returns (class_uri, class_name) if confidence >= threshold, else ("", "").
+        Costs exactly 1 MCP tool call + 1 LLM call.
+        """
+        try:
+            raw = self._call_mcp_tool(
+                mcp, "search_classes", {"query": search_query}, "type_matching",
+                trace_context={"match_kind": "quick_type_match_search", "entity": entity, "query": search_query},
+            )
+            candidates = self._parse_search_classes_result(raw)
+            if not candidates:
+                return "", ""
+            parsed = self.llm.chat_json(
+                type_match_select_prompt(entity, context, candidates),
+                trace_context={"match_kind": "quick_type_match_select", "entity": entity, "query": search_query},
+            )
+            if not isinstance(parsed, dict):
+                return "", ""
+            class_uri = parsed.get("class_uri", "").strip()
+            class_name = parsed.get("class_name", "").strip()
+            confidence = float(parsed.get("confidence", 0.0))
+            if confidence >= self._QUICK_TYPE_MATCH_CONFIDENCE_THRESHOLD and class_uri:
+                is_valid, _ = self._validate_class_uri(class_uri)
+                if is_valid:
+                    self._log(
+                        logging.INFO,
+                        "[quick_type_match] '%s' -> '%s' (%s) conf=%.2f query='%s'",
+                        entity, class_name, class_uri, confidence, search_query,
+                    )
+                    return class_uri, class_name
+        except Exception as e:
+            self._log(logging.WARNING, "[quick_type_match] failed for '%s': %s", entity, e)
+        return "", ""
+
     def _match_entity_class(
         self, mcp: MCPStdioClient, entity: str, context: str
     ) -> Tuple[str, str]:
@@ -1666,6 +1738,15 @@ class OntologyExtractorPipeline:
         with self._cache_lock:
             if cache_key in self._entity_class_cache:
                 return self._entity_class_cache[cache_key]
+
+        # 방안 4: 1차 패스 — search_classes + type_match_select_prompt (1 MCP call)
+        # Use entity name as the initial query. If this yields high-confidence result, skip agent loop.
+        class_uri, class_name = self._quick_type_match(mcp, entity, context, entity.strip())
+        if class_uri:
+            result = (class_uri, class_name)
+            with self._cache_lock:
+                self._entity_class_cache[cache_key] = result
+            return result
 
         max_per_entity = int(self.config["mcp"]["max_tool_calls_type_matching"])
         allowed_tools = {
