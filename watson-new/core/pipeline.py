@@ -77,6 +77,15 @@ class PipelineState(TypedDict):
     error: Optional[str]
 
 
+EVIDENCE_KIND_WEIGHTS: Dict[str, int] = {
+    "explicit_definition": 5,
+    "apposition": 4,
+    "name_pattern": 3,
+    "entity_description": 2,
+    "relation_context": 1,
+}
+
+
 class OntologyConstraintChecker:
     @staticmethod
     def _detect_format(schema_path: Path) -> Optional[str]:
@@ -283,6 +292,7 @@ class OntologyExtractorPipeline:
         self.paraphrase_files: List[Path] = []
         self.entities: List[Dict[str, str]] = []
         self.entities_by_chunk: Dict[str, List[Dict[str, str]]] = {}
+        self.entity_memory: Dict[str, Dict[str, Any]] = {}
         self.triplets: List[Dict[str, Any]] = []
         self.all_typed_triplets: List[Dict[str, Any]] = []
         self.typed_triplets: List[Dict[str, Any]] = []
@@ -1088,7 +1098,9 @@ class OntologyExtractorPipeline:
                 self.entities_by_chunk.setdefault(entity["source_chunk"], []).append(entity)
 
         self._refresh_triplet_descriptions()
+        self._build_entity_memory()
         self._write_json(self.intermediate / "entities.json", {"entities": self.entities})
+        self._write_json(self.intermediate / "entityMemory.json", self.entity_memory)
         self._write_json(self.intermediate / "triplets.json", self.triplets)
         self._log(logging.INFO, "[4] Entity Extraction completed: %s entities", len(self.entities))
 
@@ -1126,6 +1138,196 @@ class OntologyExtractorPipeline:
             if self._normalize_entity_key(item["name"]) == target:
                 return item["description"]
         return ""
+
+    @staticmethod
+    def _evidence_weight(kind: str) -> int:
+        return EVIDENCE_KIND_WEIGHTS.get(kind, 0)
+
+    def _classify_evidence_kind(self, entity: str, text: str) -> str:
+        name = clean_text(entity)
+        context = clean_text(text)
+        if not name or not context:
+            return "relation_context"
+
+        escaped = re.escape(name)
+        explicit_patterns = [
+            rf"\b{escaped}\b\s+(?:is|was|are|were)\s+(?:an?|the)\b",
+            rf"\b{escaped}\b\s+(?:refers to|denotes|represents)\b",
+        ]
+        for pattern in explicit_patterns:
+            if re.search(pattern, context, flags=re.IGNORECASE):
+                return "explicit_definition"
+
+        apposition_patterns = [
+            rf"\b{escaped}\b\s*,\s*(?:an?|the)\b",
+            rf"(?:an?|the)\s+[^.(),;]{{1,80}},\s*\b{escaped}\b",
+        ]
+        for pattern in apposition_patterns:
+            if re.search(pattern, context, flags=re.IGNORECASE):
+                return "apposition"
+
+        lowered = name.casefold()
+        if (
+            re.search(r"\bCVE-\d{4}-\d{4,7}\b", name)
+            or re.search(r"\b(?:iOS|Android|Windows|macOS|Linux)\b", name, flags=re.IGNORECASE)
+            or any(token in lowered for token in ("spyware", "ransomware", "malware", "phishing", "exploit"))
+        ):
+            return "name_pattern"
+
+        if len(context.split()) <= 28:
+            return "entity_description"
+        return "relation_context"
+
+    def _remember_entity_evidence(
+        self,
+        entity_name: str,
+        chunk_name: str,
+        text: str,
+        evidence_kind: str,
+    ) -> None:
+        key = self._normalize_entity_key(entity_name)
+        if not key:
+            return
+        evidence_text = clean_text(text)
+        if not evidence_text:
+            return
+
+        memory = self.entity_memory.setdefault(
+            key,
+            {
+                "name": clean_text(entity_name),
+                "aliases": set(),
+                "evidence": [],
+                "best_evidence": {"kind": "", "weight": 0, "text": "", "source_chunk": ""},
+                "resolved_types": {},
+            },
+        )
+        memory["aliases"].add(clean_text(entity_name))
+        weight = self._evidence_weight(evidence_kind)
+        entry = {
+            "kind": evidence_kind,
+            "weight": weight,
+            "text": evidence_text,
+            "source_chunk": chunk_name,
+        }
+        if entry not in memory["evidence"]:
+            memory["evidence"].append(entry)
+        best = memory["best_evidence"]
+        if weight > int(best.get("weight", 0)) or (
+            weight == int(best.get("weight", 0)) and len(evidence_text) > len(str(best.get("text", "")))
+        ):
+            memory["best_evidence"] = entry
+
+    def _remember_resolved_entity_type(
+        self,
+        entity_name: str,
+        class_uri: str,
+        class_name: str,
+    ) -> None:
+        key = self._normalize_entity_key(entity_name)
+        if not key or not class_uri:
+            return
+        memory = self.entity_memory.setdefault(
+            key,
+            {
+                "name": clean_text(entity_name),
+                "aliases": set(),
+                "evidence": [],
+                "best_evidence": {"kind": "", "weight": 0, "text": "", "source_chunk": ""},
+                "resolved_types": {},
+            },
+        )
+        resolved = memory.setdefault("resolved_types", {})
+        stats = resolved.setdefault(class_uri, {"class_name": class_name, "count": 0})
+        stats["count"] += 1
+        if class_name:
+            stats["class_name"] = class_name
+
+    def _build_entity_memory(self) -> None:
+        self.entity_memory = {}
+
+        for chunk_name, chunk_entities in self.entities_by_chunk.items():
+            for entity in chunk_entities:
+                description = str(entity.get("description", "") or "")
+                evidence_kind = self._classify_evidence_kind(entity.get("name", ""), description)
+                self._remember_entity_evidence(
+                    str(entity.get("name", "") or ""),
+                    chunk_name,
+                    description,
+                    evidence_kind,
+                )
+
+        for row in self.triplets:
+            sentence = str(row.get("source_sentence", "") or "")
+            chunk_name = str(row.get("source_chunk", "") or "")
+            if row.get("subject"):
+                self._remember_entity_evidence(
+                    str(row["subject"]),
+                    chunk_name,
+                    sentence,
+                    "relation_context",
+                )
+            if row.get("object"):
+                self._remember_entity_evidence(
+                    str(row["object"]),
+                    chunk_name,
+                    sentence,
+                    "relation_context",
+                )
+
+        for memory in self.entity_memory.values():
+            memory["aliases"] = sorted(memory["aliases"])
+
+    def _entity_memory_summary(self, entity_name: str) -> str:
+        key = self._normalize_entity_key(entity_name)
+        if not key:
+            return ""
+        memory = self.entity_memory.get(key)
+        if not memory:
+            return ""
+
+        lines: List[str] = []
+        aliases = [alias for alias in memory.get("aliases", []) if alias and alias != entity_name]
+        if aliases:
+            lines.append("Known aliases: " + ", ".join(aliases[:3]))
+
+        best = memory.get("best_evidence") or {}
+        if best.get("text"):
+            lines.append(
+                "Strongest typing evidence "
+                f"({best.get('kind', 'unknown')}): {best.get('text', '')}"
+            )
+
+        resolved_types = memory.get("resolved_types") or {}
+        if resolved_types:
+            ranked = sorted(
+                resolved_types.items(),
+                key=lambda item: int(item[1].get("count", 0)),
+                reverse=True,
+            )
+            consensus = ranked[0][1]
+            lines.append(
+                "Current document-level type consensus: "
+                f"{consensus.get('class_name') or ranked[0][0]} "
+                f"(seen {consensus.get('count', 0)} time(s))"
+            )
+
+        evidence = memory.get("evidence") or []
+        if evidence:
+            ranked_evidence = sorted(
+                evidence,
+                key=lambda item: (int(item.get("weight", 0)), len(str(item.get("text", "")))),
+                reverse=True,
+            )
+            for item in ranked_evidence[:2]:
+                text = str(item.get("text", ""))
+                if best.get("text") and text == best.get("text"):
+                    continue
+                lines.append(f"Additional evidence ({item.get('kind', 'unknown')}): {text}")
+                if len(lines) >= 4:
+                    break
+
+        return "\n".join(lines)
 
     def _extract_chunk_triplets(self, path: Path, retries: int) -> List[Dict[str, Any]]:
         """Extract triplets from one paraphrased chunk. Thread-safe (only uses self.llm)."""
@@ -1345,6 +1547,7 @@ class OntologyExtractorPipeline:
         self.all_typed_triplets = typed_candidates
         self.typed_triplets = kept_rows
         self._write_json(self.intermediate / "typedTriplets.json", self.all_typed_triplets)
+        self._write_json(self.intermediate / "entityMemory.json", self.entity_memory)
         self._log(
             logging.INFO,
             "[7] Type Matching completed. kept=%s dropped=%s MCP calls: type=%s, property=%s",
@@ -1467,9 +1670,15 @@ class OntologyExtractorPipeline:
         Thread-safe: MCP calls are serialised via MCPStdioClient._send_lock;
         cache reads/writes are protected by self._cache_lock.
         """
-        subject_context = row["source_sentence"]
+        subject_context = (
+            f'Source sentence: {row["source_sentence"]}\n'
+            f'Triplet role: subject of "{row["predicate"]}" -> "{row["object"]}"'
+        )
         if row.get("subject_description"):
             subject_context = f'{subject_context}\nEntity description: {row["subject_description"]}'
+        memory_summary = self._entity_memory_summary(row["subject"])
+        if memory_summary:
+            subject_context = f"{subject_context}\n{memory_summary}"
 
         if row.get("isSubjectIoC") and row.get("subjectIoCType"):
             subj_class_uri, subj_class_name = self._match_ioc_type_class(
@@ -1488,9 +1697,15 @@ class OntologyExtractorPipeline:
         obj_class_name = ""
         pred_uri = ""
         predicate_is_inverse = False
-        object_context = row["source_sentence"]
+        object_context = (
+            f'Source sentence: {row["source_sentence"]}\n'
+            f'Triplet role: object of "{row["subject"]}" -> "{row["predicate"]}"'
+        )
         if row.get("object_description"):
             object_context = f'{object_context}\nEntity description: {row["object_description"]}'
+        object_memory_summary = self._entity_memory_summary(row["object"])
+        if object_memory_summary:
+            object_context = f"{object_context}\n{object_memory_summary}"
 
         if row["isObjectIoC"]:
             if row.get("objectIoCType"):
@@ -1591,6 +1806,17 @@ class OntologyExtractorPipeline:
             "subjectIoCType": typed_subject_ioc_type,
             "objectIoCType": typed_object_ioc_type,
         }
+        self._remember_resolved_entity_type(
+            typed_subject,
+            typed_subject_class_uri,
+            typed_subject_class_name,
+        )
+        if not object_is_literal:
+            self._remember_resolved_entity_type(
+                typed_object,
+                typed_object_class_uri,
+                typed_object_class_name,
+            )
         progress = self._advance_type_matching_progress()
         self._log_type_matching_result(row, typed_row, progress)
         return typed_row
@@ -1801,21 +2027,29 @@ class OntologyExtractorPipeline:
     def _match_entity_class(
         self, mcp: MCPStdioClient, entity: str, context: str
     ) -> Tuple[str, str]:
-        cache_key = entity.strip().lower()
+        memory_summary = self._entity_memory_summary(entity)
+        best_evidence = ""
+        if memory_summary:
+            best_evidence = memory_summary.splitlines()[0]
+        cache_key = f"{entity.strip().lower()}||{best_evidence.strip().lower()}"
         with self._cache_lock:
             if cache_key in self._entity_class_cache:
                 return self._entity_class_cache[cache_key]
 
+        effective_context = context
+        if memory_summary and memory_summary not in effective_context:
+            effective_context = f"{effective_context}\n{memory_summary}"
+
         # 방안 1: pre-classify entity to get an ontology-friendly concept hint
-        concept_hint = self._pre_classify_entity(entity, context)
+        concept_hint = self._pre_classify_entity(entity, effective_context)
 
         # 방안 4: 1차 패스 — search_classes + type_match_select_prompt (1 MCP call)
         # Try with the concept hint first; if that fails, fall back to raw entity name.
         search_query = concept_hint if concept_hint else entity.strip()
-        class_uri, class_name = self._quick_type_match(mcp, entity, context, search_query)
+        class_uri, class_name = self._quick_type_match(mcp, entity, effective_context, search_query)
         if not class_uri and concept_hint:
             # concept hint did not yield high-confidence result — retry with entity name directly
-            class_uri, class_name = self._quick_type_match(mcp, entity, context, entity.strip())
+            class_uri, class_name = self._quick_type_match(mcp, entity, effective_context, entity.strip())
         if class_uri:
             result = (class_uri, class_name)
             with self._cache_lock:
@@ -1825,8 +2059,8 @@ class OntologyExtractorPipeline:
         # Fall through: full MCP agent loop
         # Inject concept hint into context so the agent starts with a directional hint
         agent_context = (
-            f"{context}\n[Pre-classified concept: {concept_hint}]"
-            if concept_hint else context
+            f"{effective_context}\n[Pre-classified concept: {concept_hint}]"
+            if concept_hint else effective_context
         )
 
         max_per_entity = int(self.config["mcp"]["max_tool_calls_type_matching"])

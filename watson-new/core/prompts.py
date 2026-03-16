@@ -525,6 +525,13 @@ def entity_pre_classification_prompt(entity: str, context: str) -> str:
         This label will be used as a semantic search query against an ontology class index.
         Prefer generic, ontology-friendly terms — NOT the entity name itself.
 
+        Evidence priority:
+        1. Direct definitional statements such as "X is a Y"
+        2. Apposition such as "X, a Y,"
+        3. Strong name-pattern clues such as CVE IDs, version strings, or malware-family terms
+        4. Relation-role clues from the surrounding SPO context
+        If these conflict, trust the stronger evidence first.
+
         Examples (entity → concept label):
         - "Predator spyware"                      → "malware spyware"
         - "Apple Inc."                            → "organization company"
@@ -564,6 +571,13 @@ def type_match_select_prompt(entity: str, context: str, candidates: List[Dict[st
         IMPORTANT: Choose the most specific (leaf-level) class that still accurately
         describes the entity. Do NOT select a broader parent class if a more specific
         subclass is a better fit.
+        When evidence conflicts, use this priority order:
+        1. Explicit definitional statements
+        2. Appositive descriptions
+        3. Strong name-pattern signals
+        4. Relation-role clues from the local SPO
+        Do not label an organization as a threat actor unless the context explicitly says
+        the entity is the attacker rather than merely a vendor, reporter, or research team.
 
         Entity: {entity}
         Context: {context}
