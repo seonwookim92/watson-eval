@@ -293,7 +293,7 @@ class OntologyExtractorPipeline:
         self._entity_class_cache: Dict[str, Tuple[str, str]] = {}
         self._ioc_type_class_cache: Dict[str, Tuple[str, str]] = {}
         self._literal_check_cache: Dict[Tuple[str, str], Tuple[bool, str]] = {}
-        self._predicate_uri_cache: Dict[Tuple[str, str, str], str] = {}
+        self._predicate_uri_cache: Dict[Tuple[str, str, str], Tuple[str, bool]] = {}
         self._predicate_query_cache: Dict[Tuple[str, str, str], List[str]] = {}
         self._untyped_predicate_cache: Dict[str, str] = {}
 
@@ -1365,6 +1365,7 @@ class OntologyExtractorPipeline:
             "subject_class_name": "",
             "predicate": row["predicate"],
             "predicate_uri": "",
+            "predicate_is_inverse": False,
             "object": row["object"],
             "object_description": row.get("object_description", ""),
             "object_is_literal": False,
@@ -1486,6 +1487,7 @@ class OntologyExtractorPipeline:
         obj_class_uri = ""
         obj_class_name = ""
         pred_uri = ""
+        predicate_is_inverse = False
         object_context = row["source_sentence"]
         if row.get("object_description"):
             object_context = f'{object_context}\nEntity description: {row["object_description"]}'
@@ -1503,7 +1505,7 @@ class OntologyExtractorPipeline:
                 obj_class_uri, obj_class_name = self._match_entity_class(
                     mcp, row["object"], object_context
                 )
-            pred_uri = self._match_predicate_uri(
+            pred_uri, predicate_is_inverse = self._match_predicate_uri(
                 row["subject"], row["id"], subj_class_uri,
                 row["predicate"], row["object"], obj_class_uri,
             )
@@ -1512,7 +1514,7 @@ class OntologyExtractorPipeline:
                 obj_class_uri, obj_class_name = self._match_entity_class(
                     mcp, row["object"], object_context
                 )
-                pred_uri = self._match_predicate_uri(
+                pred_uri, predicate_is_inverse = self._match_predicate_uri(
                     row["subject"], row["id"], subj_class_uri,
                     row["predicate"], row["object"], obj_class_uri,
                 )
@@ -1527,30 +1529,67 @@ class OntologyExtractorPipeline:
                     obj_class_uri, obj_class_name = self._match_entity_class(
                         mcp, row["object"], object_context
                     )
-                    pred_uri = self._match_predicate_uri(
+                    pred_uri, predicate_is_inverse = self._match_predicate_uri(
                         row["subject"], row["id"], subj_class_uri,
                         row["predicate"], row["object"], obj_class_uri,
                     )
+
+        typed_subject = row["subject"]
+        typed_subject_description = row.get("subject_description", "")
+        typed_subject_class_uri = subj_class_uri
+        typed_subject_class_name = subj_class_name
+        typed_object = row["object"]
+        typed_object_description = row.get("object_description", "")
+        typed_object_class_uri = obj_class_uri
+        typed_object_class_name = obj_class_name
+        typed_is_subject_ioc = row["isSubjectIoC"]
+        typed_is_object_ioc = row["isObjectIoC"]
+        typed_subject_ioc_type = row.get("subjectIoCType", "")
+        typed_object_ioc_type = row.get("objectIoCType", "")
+
+        if predicate_is_inverse and not object_is_literal:
+            typed_subject, typed_object = typed_object, typed_subject
+            typed_subject_description, typed_object_description = (
+                typed_object_description,
+                typed_subject_description,
+            )
+            typed_subject_class_uri, typed_object_class_uri = (
+                typed_object_class_uri,
+                typed_subject_class_uri,
+            )
+            typed_subject_class_name, typed_object_class_name = (
+                typed_object_class_name,
+                typed_subject_class_name,
+            )
+            typed_is_subject_ioc, typed_is_object_ioc = (
+                typed_is_object_ioc,
+                typed_is_subject_ioc,
+            )
+            typed_subject_ioc_type, typed_object_ioc_type = (
+                typed_object_ioc_type,
+                typed_subject_ioc_type,
+            )
 
         typed_row = {
             "id": row["id"],
             "source_sentence": row["source_sentence"],
             "source_chunk": row["source_chunk"],
-            "subject": row["subject"],
-            "subject_description": row.get("subject_description", ""),
-            "subject_class_uri": subj_class_uri,
-            "subject_class_name": subj_class_name,
+            "subject": typed_subject,
+            "subject_description": typed_subject_description,
+            "subject_class_uri": typed_subject_class_uri,
+            "subject_class_name": typed_subject_class_name,
             "predicate": row["predicate"],
             "predicate_uri": pred_uri,
-            "object": row["object"],
-            "object_description": row.get("object_description", ""),
+            "predicate_is_inverse": predicate_is_inverse,
+            "object": typed_object,
+            "object_description": typed_object_description,
             "object_is_literal": object_is_literal,
-            "object_class_uri": obj_class_uri,
-            "object_class_name": obj_class_name,
-            "isSubjectIoC": row["isSubjectIoC"],
-            "isObjectIoC": row["isObjectIoC"],
-            "subjectIoCType": row.get("subjectIoCType", ""),
-            "objectIoCType": row.get("objectIoCType", ""),
+            "object_class_uri": typed_object_class_uri,
+            "object_class_name": typed_object_class_name,
+            "isSubjectIoC": typed_is_subject_ioc,
+            "isObjectIoC": typed_is_object_ioc,
+            "subjectIoCType": typed_subject_ioc_type,
+            "objectIoCType": typed_object_ioc_type,
         }
         progress = self._advance_type_matching_progress()
         self._log_type_matching_result(row, typed_row, progress)
@@ -2008,7 +2047,7 @@ class OntologyExtractorPipeline:
 
     _UNTYPED_PREDICATE_CONFIDENCE_THRESHOLD = 0.6
 
-    def _match_predicate_uri_untyped(self, predicate: str) -> str:
+    def _match_predicate_uri_untyped(self, predicate: str) -> Tuple[str, bool]:
         """방안 6: subject entity type이 없을 때의 fallback predicate matching.
 
         Runs search_properties with the predicate string, then asks the LLM
@@ -2022,11 +2061,11 @@ class OntologyExtractorPipeline:
         predicate_key = predicate.strip().casefold()
         with self._cache_lock:
             if predicate_key in self._untyped_predicate_cache:
-                return self._untyped_predicate_cache[predicate_key]
+                return self._untyped_predicate_cache[predicate_key], False
 
         mcp = self._try_create_mcp()
         if mcp is None:
-            return ""
+            return "", False
 
         result = ""
         try:
@@ -2077,7 +2116,7 @@ class OntologyExtractorPipeline:
 
         with self._cache_lock:
             self._untyped_predicate_cache[predicate_key] = result
-        return result
+        return result, False
 
     def _match_predicate_uri(
         self,
@@ -2087,7 +2126,7 @@ class OntologyExtractorPipeline:
         predicate: str,
         obj: str,
         obj_class_uri: str,
-    ) -> str:
+    ) -> Tuple[str, bool]:
         cache_key = (subject_class_uri, predicate, obj_class_uri)
         with self._cache_lock:
             if cache_key in self._predicate_uri_cache:
@@ -2103,6 +2142,7 @@ class OntologyExtractorPipeline:
         max_calls = int(self.config["mcp"]["max_tool_calls_property_matching"])
         validation_feedback = ""
         result = ""
+        is_inverse = False
         predicate_queries = self._predicate_query_variants(
             subject=subject,
             predicate=predicate,
@@ -2144,8 +2184,10 @@ class OntologyExtractorPipeline:
                 },
             )
             result = parsed.get("property_uri", "") if isinstance(parsed, dict) else ""
+            is_inverse = bool(parsed.get("is_inverse", False)) if isinstance(parsed, dict) else False
             if result and not self._response_uri_seen(result, parsed.get("_transcript", "")):
                 result = ""
+                is_inverse = False
             is_valid, reason = self._validate_property_uri(result, expect_data_property=False if result else None)
             if is_valid:
                 break
@@ -2155,9 +2197,10 @@ class OntologyExtractorPipeline:
             )
             self._log(logging.WARNING, "[MCP-Agent][property_matching] %s", reason)
             result = ""
+            is_inverse = False
         with self._cache_lock:
-            self._predicate_uri_cache[cache_key] = result
-        return result
+            self._predicate_uri_cache[cache_key] = (result, is_inverse)
+        return result, is_inverse
 
     def _run_mcp_agent_loop(
         self,

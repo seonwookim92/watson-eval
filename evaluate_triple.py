@@ -597,7 +597,7 @@ async def main() -> None:
     parser.add_argument("--llm-provider", default=None,
                         help="LLM judge provider: openai|gemini|claude|ollama")
     parser.add_argument("--llm-model",    default=None, help="LLM model name")
-    parser.add_argument("--llm-base-url", default=None, help="Ollama base URL")
+    parser.add_argument("--llm-base-url", default=None, help="LLM judge base URL")
     parser.add_argument("--hitl",         action="store_true",
                         help="Human-in-the-Loop interactive review")
     parser.add_argument("--limit",        type=int, default=None,
@@ -617,6 +617,8 @@ async def main() -> None:
     print(f"[*] Gold scope   : {'explicit + implicit' if args.include_implicit else 'explicit only'}")
     print(f"[*] Emb threshold: {args.threshold}")
     print(f"[*] LLM judge    : {llm_provider}/{llm_model}")
+    if llm_base_url:
+        print(f"[*] LLM endpoint : {llm_base_url}")
     print(f"[*] HITL         : {'ON' if args.hitl else 'OFF'}")
 
     with open(args.results, encoding="utf-8") as f:

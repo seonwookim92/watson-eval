@@ -32,7 +32,8 @@ def default_config() -> Dict[str, Any]:
             "thinking": _e(env, "WATSON_NEW_LLM_THINKING", "false").strip().lower() == "true",
         },
         "embedding": {
-            "base_url": _e(env, "WATSON_NEW_EMBEDDING_BASE_URL", "http://127.0.0.1:8082/v1"),
+            "mode":     _e(env, "WATSON_NEW_EMBEDDING_MODE", "local"),
+            "base_url": _e(env, "WATSON_NEW_EMBEDDING_BASE_URL", "http://192.168.100.2:8082/v1"),
             "model":    _e(env, "WATSON_NEW_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
             "api_key":  _e(env, "WATSON_NEW_EMBEDDING_API_KEY", ""),
             "truncate_prompt_tokens": 256,

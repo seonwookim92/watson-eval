@@ -951,6 +951,15 @@ def object_property_resolution_agent_prompt(
         - If no exact lexical match exists but a schema-valid candidate is semantically close, choose that candidate instead of returning empty.
         - Never choose a property outside the schema-valid candidates surfaced by the tools.
 
+        Weak recommend_relation handling (IMPORTANT):
+        - Inspect the [Score: X.XXXX] values in `recommend_relation` results.
+        - If ALL returned scores are below 0.45, or if `recommend_relation` returned "No valid ObjectProperties found",
+          this signals that the entity types may be incorrect or the domain/range does not cover this relation.
+          In that case, you MUST call `search_properties` with the predicate phrase before finishing.
+        - `search_properties` is type-agnostic and can find the right property even when entity typing is imperfect.
+        - If `search_properties` returns a candidate that is a better semantic match for the predicate phrase
+          (even if not domain/range validated), prefer it over a weak `recommend_relation` result with score < 0.45.
+
         Tool transcript so far:
         {transcript}
 
@@ -972,9 +981,19 @@ def object_property_resolution_agent_prompt(
           "action": "finish",
           "property_uri": "<URI or empty string>",
           "property_name": "<name or empty string>",
+          "is_inverse": <true/false>,
           "confidence": <0.0-1.0>,
           "reason": "<why this is the best stopping point, including why the strongest alternative property candidate was rejected>"
         }}
+
+        Inverse-direction rule:
+        - If the selected property is only valid in the reverse ontology direction
+          (the recommend_relation result marks it as an INVERSE relation), set
+          "is_inverse": true.
+        - If the selected property is valid in the current subject -> object direction,
+          set "is_inverse": false.
+        - Do not set "is_inverse": true unless the chosen property is explicitly an
+          inverse-direction match in the tool results.
 
         Find the best ObjectProperty for the relationship below.
 

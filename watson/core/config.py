@@ -64,9 +64,20 @@ class Config:
     DEFAULT_CHUNK_OVERLAP = 400
 
     # Evaluation LLM (used by LLMMatcher; can be separate from prediction LLM)
-    EVAL_LLM_PROVIDER = os.getenv("EVAL_LLM_PROVIDER", "ollama")
-    EVAL_LLM_MODEL    = os.getenv("EVAL_LLM_MODEL",    "llama3.1:8b")
-    EVAL_LLM_BASE_URL = os.getenv("EVAL_LLM_BASE_URL", "http://localhost:11434")
+    # If explicit eval settings are not provided, reuse watson-new's OpenAI-compatible
+    # endpoint so standalone evaluate_* scripts follow the active deployment config.
+    EVAL_LLM_PROVIDER = os.getenv(
+        "EVAL_LLM_PROVIDER",
+        "openai" if os.getenv("WATSON_NEW_LLM_BASE_URL") else "ollama",
+    )
+    EVAL_LLM_MODEL = os.getenv(
+        "EVAL_LLM_MODEL",
+        os.getenv("WATSON_NEW_LLM_MODEL", "qwen3.5-35b"),
+    )
+    EVAL_LLM_BASE_URL = os.getenv(
+        "EVAL_LLM_BASE_URL",
+        os.getenv("WATSON_NEW_LLM_BASE_URL", "http://192.168.100.2:8081/v1"),
+    )
 
     @classmethod
     def set_schema(cls, schema: str):
