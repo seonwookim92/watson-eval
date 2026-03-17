@@ -1,20 +1,34 @@
 import json
+import urllib.error
 import uuid
 import rdflib
 import urllib.parse
+import urllib.request
+from typing import Any
 from rdflib.namespace import RDF
 from mcp.server.fastmcp import FastMCP
+from pydantic import BaseModel, Field, TypeAdapter
 from .engine import OntologyEngine
-from .config import MAPPING_GUIDELINES, DEFAULT_ONTOLOGY_DIR, EMBEDDING_MODEL
+from .config import (
+    MAPPING_GUIDELINES,
+    DEFAULT_ONTOLOGY_DIR,
+    EMBEDDING_MODEL,
+    PROPERTY_RECOMMENDER_BASE_URL,
+    PROPERTY_RECOMMENDER_API_KEY,
+    PROPERTY_RECOMMENDER_MODEL,
+    PROPERTY_RECOMMENDER_TIMEOUT_SECONDS,
+)
 
 import logging
 
 # Score adjustment constants for search and ranking
 KEYWORD_BONUS = 0.3            # Bonus when query is found verbatim in name/comment
-SEMANTIC_MATCH_THRESHOLD = 0.45 # Minimum semantic score for global property search results
+SEMANTIC_MATCH_THRESHOLD = 0.6 # Minimum semantic score to include a property result
 DATATYPE_MATCH_BOOST = 0.2     # Boost when property range matches inferred value type
 DIRECT_RELATION_BOOST = 0.1    # Boost for directly defined object properties
 INVERSE_RELATION_PENALTY = 0.05  # Penalty for inverse (reversed-direction) relations
+PROPERTY_RECOMMENDER_RETRY_LIMIT = 3
+PROPERTY_RECOMMENDER_CANDIDATES_PER_BUCKET = 8
 
 # Silence noisy logs from FastMCP and underlying libraries
 logging.basicConfig(level=logging.WARNING)
@@ -28,6 +42,259 @@ mcp = FastMCP("Universal Ontology Core", instructions=MAPPING_GUIDELINES)
 
 # Global manager instance
 engine = OntologyEngine(DEFAULT_ONTOLOGY_DIR, model_name=EMBEDDING_MODEL)
+
+
+class RecommendedProperty(BaseModel):
+    isReverse: bool
+    isDataProperty: bool
+    propertyURI: str
+    confidence: float = Field(ge=0.0, le=1.0)
+
+
+class RecommendPropertyResponse(BaseModel):
+    isSuccess: bool
+    result: list[RecommendedProperty]
+
+
+RECOMMENDED_PROPERTY_LIST_ADAPTER = TypeAdapter(list[RecommendedProperty])
+
+
+def _short_uri(uri: str) -> str:
+    return uri.split("/")[-1].split("#")[-1]
+
+
+def _combine_query_and_context(query: str, context: str | None) -> str:
+    query = query.strip()
+    if context and context.strip():
+        return f"{query} {context.strip()}"
+    return query
+
+
+def _extract_text_content(content: Any) -> str:
+    if isinstance(content, str):
+        return content
+    if isinstance(content, list):
+        parts = []
+        for item in content:
+            if isinstance(item, str):
+                parts.append(item)
+            elif isinstance(item, dict):
+                text = item.get("text")
+                if isinstance(text, str):
+                    parts.append(text)
+        return "\n".join(parts)
+    return str(content)
+
+
+def _extract_json_array(raw_text: str) -> str:
+    text = raw_text.strip()
+    if text.startswith("```"):
+        lines = text.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        text = "\n".join(lines).strip()
+
+    start = text.find("[")
+    end = text.rfind("]")
+    if start == -1 or end == -1 or end < start:
+        raise ValueError("No JSON array found in the LLM response.")
+    return text[start:end + 1]
+
+
+def _call_property_recommender_llm(messages: list[dict[str, str]]) -> str:
+    if not PROPERTY_RECOMMENDER_MODEL:
+        raise RuntimeError("PROPERTY_RECOMMENDER_MODEL is not configured.")
+
+    payload = {
+        "model": PROPERTY_RECOMMENDER_MODEL,
+        "messages": messages,
+        "temperature": 0,
+    }
+    headers = {"Content-Type": "application/json"}
+    if PROPERTY_RECOMMENDER_API_KEY:
+        headers["Authorization"] = f"Bearer {PROPERTY_RECOMMENDER_API_KEY}"
+
+    request = urllib.request.Request(
+        f"{PROPERTY_RECOMMENDER_BASE_URL}/chat/completions",
+        data=json.dumps(payload).encode("utf-8"),
+        headers=headers,
+        method="POST",
+    )
+
+    try:
+        with urllib.request.urlopen(request, timeout=PROPERTY_RECOMMENDER_TIMEOUT_SECONDS) as response:
+            body = json.loads(response.read().decode("utf-8"))
+    except urllib.error.HTTPError as exc:
+        detail = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"LLM HTTP {exc.code}: {detail}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"LLM request failed: {exc.reason}") from exc
+
+    try:
+        content = body["choices"][0]["message"]["content"]
+    except (KeyError, IndexError, TypeError) as exc:
+        raise RuntimeError(f"Unexpected LLM response payload: {body}") from exc
+
+    return _extract_text_content(content)
+
+
+def _build_property_candidate_description(candidate: dict[str, Any], subject_type_uri: str, object_type_uri: str) -> str:
+    prop_info = engine.properties[candidate["uri"]]
+    bridge_name = _short_uri(candidate["bridge"]) if candidate.get("bridge") else None
+
+    if candidate["is_data_property"]:
+        owner_uri = object_type_uri if candidate["is_reverse"] else subject_type_uri
+        direction = f"{_short_uri(owner_uri)} -> Literal"
+        if candidate["is_reverse"]:
+            direction += " (reverse relative to input S/O)"
+        selection_hint = f"Use when {_short_uri(owner_uri)} should carry a literal value matching the predicate."
+    else:
+        src_uri = object_type_uri if candidate["is_reverse"] else subject_type_uri
+        dst_uri = subject_type_uri if candidate["is_reverse"] else object_type_uri
+        direction = f"{_short_uri(src_uri)} -> {_short_uri(dst_uri)}"
+        selection_hint = f"Use when the ontology relation should point from {_short_uri(src_uri)} to {_short_uri(dst_uri)}."
+
+    if candidate["path_type"] == "facet" and bridge_name:
+        selection_hint += f" This property is discovered via facet/component {bridge_name}."
+    elif candidate["path_type"] == "direct":
+        selection_hint += " This is a direct relation."
+
+    return json.dumps(
+        {
+            "propertyURI": candidate["uri"],
+            "propertyName": prop_info["name"],
+            "description": prop_info["comment"] or "",
+            "isReverse": candidate["is_reverse"],
+            "isDataProperty": candidate["is_data_property"],
+            "direction": direction,
+            "pathType": candidate["path_type"],
+            "bridgeClassURI": candidate["bridge"],
+            "domainURIs": prop_info["domain"],
+            "rangeURIs": prop_info["range"],
+            "selectionHint": selection_hint,
+            "retrievalScore": round(candidate["retrieval_score"], 4),
+        },
+        ensure_ascii=True,
+    )
+
+
+def _rank_recommend_property_candidates(
+    candidates: list[dict[str, Any]],
+    combined_query: str,
+) -> list[dict[str, Any]]:
+    if not candidates:
+        return []
+
+    candidate_uris = [candidate["uri"] for candidate in candidates]
+    name_embs = [engine.properties[uri]["name_embedding"] for uri in candidate_uris]
+    comment_embs = [engine.properties[uri]["comment_embedding"] for uri in candidate_uris]
+    sim_scores = engine.weighted_similarity(combined_query, name_embs, comment_embs)
+    query_lower = combined_query.lower()
+
+    scored_candidates = []
+    for candidate, score in zip(candidates, sim_scores):
+        info = engine.properties[candidate["uri"]]
+        if query_lower and (
+            query_lower in info["name"].lower() or query_lower in info["comment"].lower()
+        ):
+            score += KEYWORD_BONUS
+        if not candidate["is_data_property"] and candidate["path_type"] == "direct":
+            score += DIRECT_RELATION_BOOST
+        scored = dict(candidate)
+        scored["retrieval_score"] = float(score)
+        scored_candidates.append(scored)
+
+    bucketed = {
+        (False, False): [],
+        (True, False): [],
+        (False, True): [],
+        (True, True): [],
+    }
+    for candidate in scored_candidates:
+        bucketed[(candidate["is_reverse"], candidate["is_data_property"])].append(candidate)
+
+    selected = []
+    for bucket in bucketed.values():
+        bucket.sort(key=lambda item: item["retrieval_score"], reverse=True)
+        selected.extend(bucket[:PROPERTY_RECOMMENDER_CANDIDATES_PER_BUCKET])
+
+    selected.sort(key=lambda item: item["retrieval_score"], reverse=True)
+    return selected
+
+
+def _build_recommend_property_candidates(subject_type_uri: str, object_type_uri: str) -> list[dict[str, Any]]:
+    raw_candidates = engine.get_property_candidates_for_type_pair(subject_type_uri, object_type_uri)
+    candidates = []
+    for candidate in raw_candidates:
+        if candidate["uri"] not in engine.properties:
+            continue
+        candidates.append(candidate)
+    return candidates
+
+
+def _build_recommend_property_messages(
+    subject_type_uri: str,
+    object_type_uri: str,
+    predicate: str,
+    context: str | None,
+    candidates: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    candidate_lines = [
+        _build_property_candidate_description(candidate, subject_type_uri, object_type_uri)
+        for candidate in candidates
+    ]
+
+    system_prompt = (
+        "You select ontology properties from a constrained candidate list.\n"
+        "Return only a JSON array.\n"
+        "Each array item must have exactly these keys: "
+        "isReverse, isDataProperty, propertyURI, confidence.\n"
+        "Rules:\n"
+        "- Choose at most 3 candidates.\n"
+        "- propertyURI must be one of the provided candidates.\n"
+        "- Keep candidates ordered from most likely to least likely.\n"
+        "- confidence must be a number between 0.0 and 1.0.\n"
+        "- If none fit, return [].\n"
+        "- isReverse=true means the correct triple direction is object -> subject relative to the input pair.\n"
+        "- isDataProperty=true means the property connects an entity to a literal, not to the other entity."
+    )
+    user_prompt = (
+        f"subject_type_uri: {subject_type_uri}\n"
+        f"object_type_uri: {object_type_uri}\n"
+        f"predicate: {predicate}\n"
+        f"context: {context or ''}\n"
+        "Candidates:\n"
+        + "\n".join(candidate_lines)
+    )
+    return [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt},
+    ]
+
+
+def _validate_recommend_property_result(
+    parsed: Any,
+    candidates: list[dict[str, Any]],
+) -> list[RecommendedProperty]:
+    validated = RECOMMENDED_PROPERTY_LIST_ADAPTER.validate_python(parsed)
+    if len(validated) > 3:
+        raise ValueError("The LLM returned more than 3 recommendations.")
+
+    candidate_lookup = {
+        (candidate["uri"], candidate["is_reverse"], candidate["is_data_property"]): candidate
+        for candidate in candidates
+    }
+    seen = set()
+    for item in validated:
+        key = (item.propertyURI, item.isReverse, item.isDataProperty)
+        if key not in candidate_lookup:
+            raise ValueError(f"Candidate not allowed: {item.propertyURI} / reverse={item.isReverse} / data={item.isDataProperty}")
+        if key in seen:
+            raise ValueError(f"Duplicate candidate returned: {item.propertyURI}")
+        seen.add(key)
+    return validated
 
 # --- [Schema Inspection Tools] ---
 
@@ -415,6 +682,73 @@ def recommend_relation(subject_uri: str, object_uri: str, query: str, context: s
         res.append("")
         
     return "\n".join(res)
+
+
+@mcp.tool(structured_output=True)
+def recommend_property(
+    subject_type_uri: str,
+    object_type_uri: str,
+    predicate: str,
+    context: str = None,
+) -> RecommendPropertyResponse:
+    """
+    Recommends ontology properties for a subject/object type pair.
+    It considers four directions:
+    1. subject(entity) -> object(entity) via ObjectProperty
+    2. object(entity) -> subject(entity) via ObjectProperty
+    3. subject(entity) -> literal via DatatypeProperty
+    4. object(entity) -> literal via DatatypeProperty
+
+    The output is structured JSON with up to 3 candidates.
+    """
+    if not engine.has_class(subject_type_uri) or not engine.has_class(object_type_uri):
+        return RecommendPropertyResponse(isSuccess=True, result=[])
+
+    candidates = _build_recommend_property_candidates(subject_type_uri, object_type_uri)
+    if not candidates:
+        return RecommendPropertyResponse(isSuccess=True, result=[])
+
+    combined_query = _combine_query_and_context(predicate, context)
+    ranked_candidates = _rank_recommend_property_candidates(candidates, combined_query)
+    if not ranked_candidates:
+        return RecommendPropertyResponse(isSuccess=True, result=[])
+
+    if not PROPERTY_RECOMMENDER_MODEL:
+        logging.warning("recommend_property called without PROPERTY_RECOMMENDER_MODEL configured.")
+        return RecommendPropertyResponse(isSuccess=False, result=[])
+
+    messages = _build_recommend_property_messages(
+        subject_type_uri,
+        object_type_uri,
+        predicate,
+        context,
+        ranked_candidates,
+    )
+
+    retry_messages = list(messages)
+    last_error = "Unknown LLM failure."
+    for _ in range(PROPERTY_RECOMMENDER_RETRY_LIMIT):
+        raw_response = ""
+        try:
+            raw_response = _call_property_recommender_llm(retry_messages)
+            parsed = json.loads(_extract_json_array(raw_response))
+            validated = _validate_recommend_property_result(parsed, ranked_candidates)
+            return RecommendPropertyResponse(isSuccess=True, result=validated)
+        except Exception as exc:
+            last_error = str(exc)
+            retry_messages.append({"role": "assistant", "content": raw_response or "<empty response>"})
+            retry_messages.append({
+                "role": "user",
+                "content": (
+                    "Your previous answer was invalid.\n"
+                    f"Reason: {last_error}\n"
+                    "Return only a valid JSON array of up to 3 items with the exact keys "
+                    "isReverse, isDataProperty, propertyURI, confidence."
+                ),
+            })
+
+    logging.warning("recommend_property failed after retries: %s", last_error)
+    return RecommendPropertyResponse(isSuccess=False, result=[])
 
 @mcp.tool()
 def get_ontology_summary() -> str:
