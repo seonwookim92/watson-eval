@@ -794,6 +794,75 @@ def predicate_match_select_prompt(
     ).strip()
 
 
+def predicate_candidate_judge_prompt(
+    chunk_text: str,
+    sentence: str,
+    subject: str,
+    subject_class_uri: str,
+    predicate: str,
+    obj: str,
+    object_class_uri: str,
+    candidates: List[Dict[str, Any]],
+) -> str:
+    candidate_lines = "\n".join(
+        [
+            (
+                f"- property_uri: {item.get('property_uri', '')}\n"
+                f"  property_name: {item.get('property_name', '')}\n"
+                f"  is_inverse: {str(bool(item.get('is_inverse', False))).lower()}\n"
+                f"  is_data_property: {str(bool(item.get('is_data_property', False))).lower()}\n"
+                f"  confidence: {item.get('confidence', 0.0)}\n"
+                f"  source: {item.get('source', '')}\n"
+                f"  note: {item.get('note', '')}"
+            )
+            for item in candidates
+        ]
+    ) if candidates else "(no candidates)"
+    return textwrap.dedent(
+        f"""
+        You are judging ontology predicate candidates for one CTI triplet.
+
+        Your task:
+        - Use the full chunk and source sentence to decide whether one of the provided ontology
+          property candidates correctly represents the SPO relation.
+        - Choose exactly one candidate from the list, or choose no match.
+        - Never invent a property URI that is not in the candidate list.
+
+        Modeling rules:
+        - `is_data_property=true` means the object should be treated as a literal value attached to the subject.
+        - `is_inverse=true` means the ontology direction is reversed relative to the extracted SPO.
+        - Be strict. If the candidate list does not clearly fit the chunk evidence, return no match.
+        - If a candidate would change the meaning of the SPO rather than normalize it, reject it.
+
+        Full chunk:
+        {chunk_text}
+
+        Source sentence:
+        {sentence}
+
+        Extracted SPO:
+        - subject: {subject}
+        - subject_class_uri: {subject_class_uri}
+        - predicate: {predicate}
+        - object: {obj}
+        - object_class_uri: {object_class_uri}
+
+        Candidate properties:
+        {candidate_lines}
+
+        Return JSON:
+        {{
+          "property_uri": "<candidate URI or empty string>",
+          "property_name": "<candidate name or empty string>",
+          "is_inverse": <true/false>,
+          "is_data_property": <true/false>,
+          "confidence": <0.0-1.0>,
+          "reason": "<brief explanation>"
+        }}
+        """
+    ).strip()
+
+
 def predicate_query_expansion_prompt(
     subject: str,
     predicate: str,

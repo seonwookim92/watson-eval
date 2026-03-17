@@ -257,6 +257,9 @@ class MCPStdioClient:
         embedding_base_url: str = "",
         embedding_model: str = "",
         embedding_api_key: str = "",
+        property_recommender_base_url: str = "",
+        property_recommender_model: str = "",
+        property_recommender_api_key: str = "",
         timeout: int = 120,
     ) -> None:
         self.script_path = os.path.abspath(script_path)
@@ -267,6 +270,9 @@ class MCPStdioClient:
         self.embedding_base_url = embedding_base_url.rstrip("/")
         self.embedding_model = embedding_model
         self.embedding_api_key = embedding_api_key
+        self.property_recommender_base_url = property_recommender_base_url.rstrip("/")
+        self.property_recommender_model = property_recommender_model
+        self.property_recommender_api_key = property_recommender_api_key
         self.timeout = timeout
         self.proc: Optional[subprocess.Popen] = None
         self._id = 1
@@ -282,6 +288,12 @@ class MCPStdioClient:
             env["EMBEDDING_MODEL"] = self.embedding_model
         if self.embedding_api_key and self.embedding_mode == "remote":
             env["EMBEDDING_API_KEY"] = self.embedding_api_key
+        if self.property_recommender_base_url:
+            env["PROPERTY_RECOMMENDER_BASE_URL"] = self.property_recommender_base_url
+        if self.property_recommender_model:
+            env["PROPERTY_RECOMMENDER_MODEL"] = self.property_recommender_model
+        if self.property_recommender_api_key:
+            env["PROPERTY_RECOMMENDER_API_KEY"] = self.property_recommender_api_key
         self.proc = subprocess.Popen(
             [sys.executable, self.script_path],
             stdin=subprocess.PIPE,
@@ -382,8 +394,17 @@ class MCPStdioClient:
     def list_tools(self) -> Dict[str, Any]:
         return self._send("tools/list")
 
+    def call_tool_result(self, name: str, arguments: Dict[str, Any]) -> Dict[str, Any]:
+        return self._send("tools/call", {"name": name, "arguments": arguments})
+
+    def call_tool_structured(self, name: str, arguments: Dict[str, Any]) -> Any:
+        result = self.call_tool_result(name, arguments)
+        if "structuredContent" in result:
+            return result.get("structuredContent")
+        return None
+
     def call_tool(self, name: str, arguments: Dict[str, Any]) -> str:
-        result = self._send("tools/call", {"name": name, "arguments": arguments})
+        result = self.call_tool_result(name, arguments)
         content = result.get("content", [])
         if isinstance(content, list):
             texts = [

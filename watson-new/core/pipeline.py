@@ -53,6 +53,7 @@ from .prompts import (
     paraphrase_stage4_prompt,
     paraphrase_stage4_retry_prompt,
     paraphrase_stage4_verify_prompt,
+    predicate_candidate_judge_prompt,
     predicate_match_select_prompt,
     predicate_query_expansion_prompt,
     qualifier_node_worthiness_prompt,
@@ -305,9 +306,10 @@ class OntologyExtractorPipeline:
         self._entity_class_cache: Dict[str, Tuple[str, str]] = {}
         self._ioc_type_class_cache: Dict[str, Tuple[str, str]] = {}
         self._literal_check_cache: Dict[Tuple[str, str], Tuple[bool, str]] = {}
-        self._predicate_uri_cache: Dict[Tuple[str, str, str], Tuple[str, bool]] = {}
+        self._predicate_uri_cache: Dict[Tuple[str, str, str, str, str], Tuple[str, bool, bool]] = {}
         self._predicate_query_cache: Dict[Tuple[str, str, str], List[str]] = {}
         self._untyped_predicate_cache: Dict[str, str] = {}
+        self._chunk_text_cache: Dict[str, str] = {}
 
         # iocsearcher: lazy-init once, reused across all _ioc_matches calls
         self._ioc_searcher: Any = None
@@ -2116,34 +2118,27 @@ class OntologyExtractorPipeline:
                 obj_class_uri, obj_class_name = self._match_entity_class(
                     mcp, row["object"], object_context
                 )
-            pred_uri, predicate_is_inverse = self._match_predicate_uri(
-                row["subject"], row["id"], subj_class_uri,
-                row["predicate"], row["object"], obj_class_uri,
+            pred_uri, predicate_is_inverse, object_is_literal = self._match_predicate_uri(
+                row,
+                subj_class_uri,
+                obj_class_uri,
             )
         else:
-            if self._should_attempt_object_property_first(row):
-                obj_class_uri, obj_class_name = self._match_entity_class(
-                    mcp, row["object"], object_context
-                )
-                pred_uri, predicate_is_inverse = self._match_predicate_uri(
-                    row["subject"], row["id"], subj_class_uri,
-                    row["predicate"], row["object"], obj_class_uri,
-                )
-            else:
-                literal_flag, candidate_pred_uri = self._check_is_literal(
-                    row["subject"], row["id"], subj_class_uri, row["predicate"], row["object"]
-                )
-                if literal_flag:
-                    object_is_literal = True
-                    pred_uri = candidate_pred_uri
-                else:
-                    obj_class_uri, obj_class_name = self._match_entity_class(
-                        mcp, row["object"], object_context
-                    )
-                    pred_uri, predicate_is_inverse = self._match_predicate_uri(
-                        row["subject"], row["id"], subj_class_uri,
-                        row["predicate"], row["object"], obj_class_uri,
-                    )
+            obj_class_uri, obj_class_name = self._match_entity_class(
+                mcp, row["object"], object_context
+            )
+            pred_uri, predicate_is_inverse, object_is_literal = self._match_predicate_uri(
+                row,
+                subj_class_uri,
+                obj_class_uri,
+            )
+            if object_is_literal:
+                obj_class_uri = ""
+                obj_class_name = ""
+
+        if object_is_literal:
+            obj_class_uri = ""
+            obj_class_name = ""
 
         typed_subject = row["subject"]
         typed_subject_description = row.get("subject_description", "")
@@ -2259,6 +2254,9 @@ class OntologyExtractorPipeline:
                 embedding_base_url=str(self.config["embedding"].get("base_url", "")),
                 embedding_model=str(self.config["embedding"].get("model", "")),
                 embedding_api_key=str(self.config["embedding"].get("api_key", "")),
+                property_recommender_base_url=str(self.config["llm"].get("base_url", "")),
+                property_recommender_model=str(self.config["llm"].get("model", "")),
+                property_recommender_api_key=os.getenv("OPENAI_API_KEY", ""),
             )
         except Exception as e:
             self._log(logging.ERROR, "[7] MCP client creation failed: %s", e)
@@ -2675,162 +2673,195 @@ class OntologyExtractorPipeline:
                 return True
         return False
 
-    _UNTYPED_PREDICATE_CONFIDENCE_THRESHOLD = 0.6
-
-    def _match_predicate_uri_untyped(self, predicate: str) -> Tuple[str, bool]:
-        """방안 6: subject entity type이 없을 때의 fallback predicate matching.
-
-        Runs search_properties with the predicate string, then asks the LLM
-        to select the best candidate using predicate_match_select_prompt.
-        A lower confidence threshold (0.6) is used since domain/range
-        information is unavailable.
-
-        Results are cached by normalised predicate string to avoid
-        redundant calls for the same relation phrase across triplets.
-        """
-        predicate_key = predicate.strip().casefold()
-        with self._cache_lock:
-            if predicate_key in self._untyped_predicate_cache:
-                return self._untyped_predicate_cache[predicate_key], False
-
+    def _recommend_property_candidates(
+        self,
+        row: Dict[str, Any],
+        subject_class_uri: str,
+        object_class_uri: str,
+    ) -> Tuple[bool, List[Dict[str, Any]]]:
         mcp = self._try_create_mcp()
         if mcp is None:
-            return "", False
+            return False, []
 
-        result = ""
         try:
             with mcp:
-                raw = self._call_mcp_tool(
-                    mcp, "search_properties", {"query": predicate}, "property_matching",
+                payload = self._call_mcp_tool_structured(
+                    mcp,
+                    "recommend_property",
+                    {
+                        "subject_type_uri": subject_class_uri,
+                        "object_type_uri": object_class_uri,
+                        "predicate": row["predicate"],
+                        "context": row["source_sentence"],
+                    },
+                    "property_matching",
                     trace_context={
-                        "match_kind": "predicate_untyped_fallback",
-                        "predicate": predicate,
+                        "match_kind": "relationship_type_matching",
+                        "property_mode": "recommend_property",
+                        "row_id": row["id"],
+                        "subject": row["subject"],
+                        "subject_class_uri": subject_class_uri,
+                        "predicate": row["predicate"],
+                        "object": row["object"],
+                        "object_class_uri": object_class_uri,
                     },
                 )
-                candidates = self._parse_search_properties_result(raw)
-                if candidates:
-                    parsed = self.llm.chat_json(
-                        predicate_match_select_prompt(
-                            subject="(unknown)",
-                            subject_class="(unknown)",
-                            predicate=predicate,
-                            obj="(unknown)",
-                            obj_class="(unknown)",
-                            properties=candidates,
-                        ),
-                        trace_context={
-                            "match_kind": "predicate_untyped_fallback_select",
-                            "predicate": predicate,
-                        },
-                    )
-                    if isinstance(parsed, dict):
-                        prop_uri = parsed.get("property_uri", "").strip()
-                        confidence = float(parsed.get("confidence", 0.0))
-                        if confidence >= self._UNTYPED_PREDICATE_CONFIDENCE_THRESHOLD and prop_uri:
-                            is_valid, _ = self._validate_property_uri(
-                                prop_uri, expect_data_property=False
-                            )
-                            if is_valid:
-                                self._log(
-                                    logging.INFO,
-                                    "[predicate_untyped] '%s' -> '%s' conf=%.2f",
-                                    predicate, prop_uri, confidence,
-                                )
-                                result = prop_uri
         except Exception as e:
             self._log(
                 logging.WARNING,
-                "[predicate_untyped] failed for '%s': %s",
-                predicate, e,
+                "[predicate_matching] recommend_property failed for row %s: %s",
+                row.get("id"),
+                e,
             )
+            return False, []
 
-        with self._cache_lock:
-            self._untyped_predicate_cache[predicate_key] = result
-        return result, False
+        if not isinstance(payload, dict):
+            self._log(
+                logging.WARNING,
+                "[predicate_matching] recommend_property returned non-dict payload for row %s",
+                row.get("id"),
+            )
+            return False, []
+
+        if not bool(payload.get("isSuccess", False)):
+            self._log(
+                logging.WARNING,
+                "[predicate_matching] MCP recommend_property failed for row %s",
+                row.get("id"),
+            )
+            return False, []
+
+        candidates: List[Dict[str, Any]] = []
+        for item in payload.get("result", []) or []:
+            if not isinstance(item, dict):
+                continue
+            property_uri = str(item.get("propertyURI", "") or "").strip()
+            if not property_uri:
+                continue
+            candidates.append({
+                "property_uri": property_uri,
+                "property_name": self._short_uri_label(property_uri),
+                "is_inverse": bool(item.get("isReverse", False)),
+                "is_data_property": bool(item.get("isDataProperty", False)),
+                "confidence": float(item.get("confidence", 0.0) or 0.0),
+                "source": "recommend_property",
+                "note": "Candidate suggested by MCP recommend_property.",
+            })
+        return True, candidates
+
+    def _recommend_attribute_candidates(
+        self,
+        row: Dict[str, Any],
+        subject_class_uri: str,
+    ) -> Tuple[bool, List[Dict[str, Any]]]:
+        mcp = self._try_create_mcp()
+        if mcp is None:
+            return False, []
+
+        subject_entity_id = self._temp_mcp_entity_id(row["id"], "subject")
+        temp_subject_uri = self._temp_mcp_entity_uri(subject_entity_id)
+        trace_context = {
+            "match_kind": "relationship_type_matching",
+            "property_mode": "recommend_attribute",
+            "row_id": row["id"],
+            "subject": row["subject"],
+            "subject_class_uri": subject_class_uri,
+            "predicate": row["predicate"],
+            "object": row["object"],
+            "subject_entity_id": subject_entity_id,
+            "subject_entity_uri": temp_subject_uri,
+        }
+
+        try:
+            with mcp:
+                self._call_mcp_tool(
+                    mcp,
+                    "create_entity",
+                    {"entity_id": subject_entity_id, "class_uris": [subject_class_uri]},
+                    "property_matching",
+                    trace_context=trace_context,
+                )
+                raw = self._call_mcp_tool(
+                    mcp,
+                    "recommend_attribute",
+                    {
+                        "entity_uri": temp_subject_uri,
+                        "query": row["predicate"],
+                        "value": row["object"],
+                        "context": row["source_sentence"],
+                    },
+                    "property_matching",
+                    trace_context=trace_context,
+                )
+        except Exception as e:
+            self._log(
+                logging.WARNING,
+                "[predicate_matching] recommend_attribute failed for row %s: %s",
+                row.get("id"),
+                e,
+            )
+            return False, []
+
+        return True, self._parse_ranked_property_recommendations(raw)
 
     def _match_predicate_uri(
         self,
-        subject: str,
-        row_id: Any,
+        row: Dict[str, Any],
         subject_class_uri: str,
-        predicate: str,
-        obj: str,
-        obj_class_uri: str,
-    ) -> Tuple[str, bool]:
-        cache_key = (subject_class_uri, predicate, obj_class_uri)
+        object_class_uri: str,
+    ) -> Tuple[str, bool, bool]:
+        cache_key = (
+            subject_class_uri,
+            row["predicate"],
+            object_class_uri,
+            str(row.get("source_chunk", "") or ""),
+            str(row.get("object", "") or ""),
+        )
         with self._cache_lock:
             if cache_key in self._predicate_uri_cache:
                 return self._predicate_uri_cache[cache_key]
 
-        # 방안 6: cascading 차단 해제 — entity type matching 실패해도 predicate 탐색 시도
-        if not subject_class_uri:
-            result = self._match_predicate_uri_untyped(predicate)
-            with self._cache_lock:
-                self._predicate_uri_cache[cache_key] = result
-            return result
-
-        max_calls = int(self.config["mcp"]["max_tool_calls_property_matching"])
-        validation_feedback = ""
         result = ""
         is_inverse = False
-        predicate_queries = self._predicate_query_variants(
-            subject=subject,
-            predicate=predicate,
-            obj=obj,
-            subject_class_uri=subject_class_uri,
-            obj_class_uri=obj_class_uri,
-        )
-        for _ in range(3):
-            parsed = self._run_property_agent_with_temp_entities(
-                subject_class_uri=subject_class_uri,
-                object_class_uri=obj_class_uri,
-                prompt_factory=lambda transcript, remaining, temp_subject_uri, temp_object_uri, force_finish=False, feedback=validation_feedback: object_property_resolution_agent_prompt(
-                    subject=subject,
+        is_data_property = False
+
+        if not subject_class_uri:
+            final = (result, is_inverse, is_data_property)
+            with self._cache_lock:
+                self._predicate_uri_cache[cache_key] = final
+            return final
+
+        if object_class_uri:
+            ok, candidates = self._recommend_property_candidates(row, subject_class_uri, object_class_uri)
+            if ok and candidates:
+                result, is_inverse, is_data_property = self._judge_predicate_candidates(
+                    row=row,
                     subject_class_uri=subject_class_uri,
-                    subject_entity_uri=temp_subject_uri,
-                    predicate=predicate,
-                    obj=obj,
-                    obj_class_uri=obj_class_uri,
-                    object_entity_uri=temp_object_uri,
-                    predicate_queries=predicate_queries,
-                    transcript=self._augment_transcript(transcript, feedback),
-                    remaining_calls=remaining,
-                    force_finish=force_finish,
-                ),
-                allowed_tools={"recommend_relation", "search_properties", "get_class_details", "list_available_facets"},
-                max_calls=max_calls,
-                counter_key="property_matching",
-                subject_entity_id=self._temp_mcp_entity_id(row_id, "subject"),
-                object_entity_id=self._temp_mcp_entity_id(row_id, "object"),
-                trace_context={
-                    "match_kind": "relationship_type_matching",
-                    "property_mode": "object_property",
-                    "row_id": row_id,
-                    "subject": subject,
-                    "subject_class_uri": subject_class_uri,
-                    "predicate": predicate,
-                    "object": obj,
-                    "object_class_uri": obj_class_uri,
-                },
-            )
-            result = parsed.get("property_uri", "") if isinstance(parsed, dict) else ""
-            is_inverse = bool(parsed.get("is_inverse", False)) if isinstance(parsed, dict) else False
-            if result and not self._response_uri_seen(result, parsed.get("_transcript", "")):
-                result = ""
-                is_inverse = False
-            is_valid, reason = self._validate_property_uri(result, expect_data_property=False if result else None)
-            if is_valid:
-                break
-            validation_feedback = (
-                f"{reason} The previous answer is invalid. "
-                "Return an object property URI that actually exists in the loaded ontology, or return an empty property URI if no valid relation fits."
-            )
-            self._log(logging.WARNING, "[MCP-Agent][property_matching] %s", reason)
+                    object_class_uri=object_class_uri,
+                    candidates=candidates,
+                )
+        else:
+            ok, candidates = self._recommend_attribute_candidates(row, subject_class_uri)
+            if ok and candidates:
+                result, is_inverse, is_data_property = self._judge_predicate_candidates(
+                    row=row,
+                    subject_class_uri=subject_class_uri,
+                    object_class_uri="",
+                    candidates=candidates,
+                )
+
+        expect_data_property = is_data_property if result else None
+        is_valid, reason = self._validate_property_uri(result, expect_data_property=expect_data_property)
+        if not is_valid:
+            self._log(logging.WARNING, "[predicate_matching] %s", reason)
             result = ""
             is_inverse = False
+            is_data_property = False
+
+        final = (result, is_inverse, is_data_property)
         with self._cache_lock:
-            self._predicate_uri_cache[cache_key] = (result, is_inverse)
-        return result, is_inverse
+            self._predicate_uri_cache[cache_key] = final
+        return final
 
     def _run_mcp_agent_loop(
         self,
@@ -3089,6 +3120,43 @@ class OntologyExtractorPipeline:
         )
         return result
 
+    def _call_mcp_tool_structured(
+        self,
+        mcp: MCPStdioClient,
+        tool: str,
+        arguments: Dict[str, Any],
+        counter_key: str,
+        trace_context: Optional[Dict[str, Any]] = None,
+    ) -> Any:
+        with self._mcp_count_lock:
+            self.mcp_call_count[counter_key] += 1
+        if trace_context:
+            self._trace_event(
+                "agent_setup_tool_call",
+                counter_key=counter_key,
+                tool=tool,
+                arguments=arguments,
+                **trace_context,
+            )
+        result = mcp.call_tool_structured(tool, arguments)
+        if trace_context:
+            self._trace_event(
+                "agent_setup_tool_result",
+                counter_key=counter_key,
+                tool=tool,
+                arguments=arguments,
+                result=result,
+                **trace_context,
+            )
+        self._log(
+            logging.INFO,
+            "[MCP-Agent][%s][setup] Structured tool result from %s:\n%s",
+            counter_key,
+            tool,
+            self._truncate_for_log(json.dumps(result, ensure_ascii=False)),
+        )
+        return result
+
     def _run_property_agent_with_temp_entities(
         self,
         subject_class_uri: str,
@@ -3278,6 +3346,135 @@ class OntologyExtractorPipeline:
             else:
                 i += 1
         return props
+
+    @staticmethod
+    def _short_uri_label(uri: str) -> str:
+        if not uri:
+            return ""
+        uri = uri.rstrip("/")
+        if "#" in uri:
+            return uri.rsplit("#", 1)[-1]
+        return uri.rsplit("/", 1)[-1]
+
+    def _get_chunk_text(self, chunk_name: str) -> str:
+        chunk_key = str(chunk_name or "").strip()
+        if not chunk_key:
+            return ""
+        with self._cache_lock:
+            cached = self._chunk_text_cache.get(chunk_key)
+        if cached is not None:
+            return cached
+
+        text = ""
+        for path in self.chunk_files:
+            if path.stem == chunk_key:
+                text = self._read_text(path)
+                break
+        with self._cache_lock:
+            self._chunk_text_cache[chunk_key] = text
+        return text
+
+    @staticmethod
+    def _parse_ranked_property_recommendations(text: str) -> List[Dict[str, Any]]:
+        candidates: List[Dict[str, Any]] = []
+        for block in re.split(r"\n(?=\d+\.)", text):
+            match = re.search(
+                r"^\s*\d+\.\s+(.+?)\s+\((https?://\S+)\)\s+\[Score:\s*([0-9.]+)\]",
+                block,
+                re.MULTILINE,
+            )
+            if not match:
+                continue
+            candidates.append({
+                "property_name": match.group(1).strip(),
+                "property_uri": match.group(2).strip().rstrip(")"),
+                "confidence": float(match.group(3)),
+                "is_inverse": False,
+                "is_data_property": True,
+                "source": "recommend_attribute",
+                "note": "DatatypeProperty candidate suggested by MCP recommend_attribute.",
+            })
+        return candidates
+
+    @staticmethod
+    def _normalize_property_candidates(candidates: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+        normalized: List[Dict[str, Any]] = []
+        seen: set[Tuple[str, bool, bool]] = set()
+        for item in candidates:
+            property_uri = str(item.get("property_uri", "") or "").strip()
+            if not property_uri:
+                continue
+            is_inverse = bool(item.get("is_inverse", False))
+            is_data_property = bool(item.get("is_data_property", False))
+            if is_inverse and is_data_property:
+                continue
+            key = (property_uri, is_inverse, is_data_property)
+            if key in seen:
+                continue
+            seen.add(key)
+            normalized.append({
+                "property_uri": property_uri,
+                "property_name": str(item.get("property_name", "") or "").strip(),
+                "is_inverse": is_inverse,
+                "is_data_property": is_data_property,
+                "confidence": float(item.get("confidence", 0.0) or 0.0),
+                "source": str(item.get("source", "") or "").strip(),
+                "note": str(item.get("note", "") or "").strip(),
+            })
+        return normalized
+
+    def _judge_predicate_candidates(
+        self,
+        row: Dict[str, Any],
+        subject_class_uri: str,
+        object_class_uri: str,
+        candidates: List[Dict[str, Any]],
+    ) -> Tuple[str, bool, bool]:
+        normalized = self._normalize_property_candidates(candidates)
+        if not normalized:
+            return "", False, False
+
+        chunk_text = self._get_chunk_text(str(row.get("source_chunk", "")))
+        parsed = self.llm.chat_json(
+            predicate_candidate_judge_prompt(
+                chunk_text=chunk_text,
+                sentence=str(row.get("source_sentence", "") or ""),
+                subject=str(row.get("subject", "") or ""),
+                subject_class_uri=subject_class_uri,
+                predicate=str(row.get("predicate", "") or ""),
+                obj=str(row.get("object", "") or ""),
+                object_class_uri=object_class_uri,
+                candidates=normalized,
+            ),
+            trace_context={
+                "match_kind": "predicate_candidate_judge",
+                "row_id": row.get("id"),
+                "predicate": row.get("predicate", ""),
+                "source_chunk": row.get("source_chunk", ""),
+            },
+        )
+        if not isinstance(parsed, dict):
+            return "", False, False
+
+        property_uri = str(parsed.get("property_uri", "") or "").strip()
+        if not property_uri:
+            return "", False, False
+
+        selected = next((item for item in normalized if item["property_uri"] == property_uri), None)
+        if selected is None:
+            self._log(
+                logging.WARNING,
+                "[predicate_judge] rejected non-candidate property '%s' for row %s",
+                property_uri,
+                row.get("id"),
+            )
+            return "", False, False
+
+        return (
+            property_uri,
+            bool(selected["is_inverse"]),
+            bool(selected["is_data_property"]),
+        )
 
     # ------------------------------------------------------------------
     # Node 8: Internal Entity Resolution
