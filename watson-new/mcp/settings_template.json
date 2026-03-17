@@ -7,7 +7,13 @@
             ],
             "env": {
                 "ONTOLOGY_DIR": "/absolute/path/to/your/ontology/folder",
-                "EMBEDDING_MODEL": "all-MiniLM-L6-v2"
+                "EMBEDDING_MODE": "remote",
+                "EMBEDDING_API_URL": "http://192.168.100.2:8082/v1/embeddings",
+                "EMBEDDING_API_KEY": "",
+                "EMBEDDING_MODEL": "all-MiniLM-L6-v2",
+                "PROPERTY_RECOMMENDER_BASE_URL": "https://api.openai.com/v1",
+                "PROPERTY_RECOMMENDER_API_KEY": "your-api-key",
+                "PROPERTY_RECOMMENDER_MODEL": "your-openai-compatible-model"
             }
         }
     }

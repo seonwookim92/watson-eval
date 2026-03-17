@@ -132,6 +132,9 @@ Unlike `search_classes`, this tool computes **no embeddings** — you (the LLM) 
 - **`recommend_relation(subject_uri, object_uri, query, context?)`**: Recommends the best `ObjectProperty` to connect two entities by analyzing Domain/Range constraints and structural paths.
   - Discovers direct, Facet-bridged, and inverse relations.
   - Applies small score adjustments (boost for direct, penalty for inverse).
+- **`recommend_property(subject_type_uri, object_type_uri, predicate, context?)`**: Recommends up to 3 schema property URIs for a type pair and returns structured JSON.
+  - Considers 4 directions: `S -> O` object property, `O -> S` object property, `S -> literal` data property, `O -> literal` data property.
+  - Uses an OpenAI-compatible LLM over a constrained candidate list and retries up to 3 times if the returned JSON is invalid.
 
 ### Graph Construction
 
@@ -203,7 +206,13 @@ Add this configuration to your MCP-compatible client (e.g., Claude Desktop, Clau
       "args": ["/absolute/path/to/universal-ontology-mcp/main.py"],
       "env": {
         "ONTOLOGY_DIR": "/absolute/path/to/your/ontology/folder",
-        "EMBEDDING_MODEL": "all-MiniLM-L6-v2"
+        "EMBEDDING_MODE": "remote",
+        "EMBEDDING_API_URL": "http://192.168.100.2:8082/v1/embeddings",
+        "EMBEDDING_API_KEY": "",
+        "EMBEDDING_MODEL": "all-MiniLM-L6-v2",
+        "PROPERTY_RECOMMENDER_BASE_URL": "https://api.openai.com/v1",
+        "PROPERTY_RECOMMENDER_API_KEY": "your-api-key",
+        "PROPERTY_RECOMMENDER_MODEL": "your-openai-compatible-model"
       }
     }
   }
@@ -220,7 +229,13 @@ Add this configuration to your MCP-compatible client (e.g., Claude Desktop, Clau
       "command": ["python", "/absolute/path/to/universal-ontology-mcp/main.py"],
       "environment": {
         "ONTOLOGY_DIR": "/absolute/path/to/your/ontology/folder",
-        "EMBEDDING_MODEL": "all-MiniLM-L6-v2"
+        "EMBEDDING_MODE": "remote",
+        "EMBEDDING_API_URL": "http://192.168.100.2:8082/v1/embeddings",
+        "EMBEDDING_API_KEY": "",
+        "EMBEDDING_MODEL": "all-MiniLM-L6-v2",
+        "PROPERTY_RECOMMENDER_BASE_URL": "https://api.openai.com/v1",
+        "PROPERTY_RECOMMENDER_API_KEY": "your-api-key",
+        "PROPERTY_RECOMMENDER_MODEL": "your-openai-compatible-model"
       }
     }
   }
@@ -232,7 +247,15 @@ Add this configuration to your MCP-compatible client (e.g., Claude Desktop, Clau
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `ONTOLOGY_DIR` | `./ontology` | Path to directory containing ontology files (recursive) |
+| `EMBEDDING_MODE` | `local` | `local` uses SentenceTransformer in-process, `remote` uses an OpenAI-compatible embedding endpoint |
+| `EMBEDDING_API_URL` | `http://192.168.100.2:8082/v1/embeddings` | Remote embedding endpoint used when `EMBEDDING_MODE=remote` |
+| `EMBEDDING_API_KEY` | `""` | Optional API key for the remote embedding endpoint |
+| `EMBEDDING_TIMEOUT_SECONDS` | `60` | Timeout for remote embedding requests |
 | `EMBEDDING_MODEL` | `all-MiniLM-L6-v2` | SentenceTransformer model for semantic search |
+| `PROPERTY_RECOMMENDER_BASE_URL` | `https://api.openai.com/v1` | Base URL for the OpenAI-compatible API used by `recommend_property` |
+| `PROPERTY_RECOMMENDER_API_KEY` | `""` | API key for the property recommender LLM. Leave empty only if your endpoint does not require auth |
+| `PROPERTY_RECOMMENDER_MODEL` | `""` | Model name used by `recommend_property`. If unset, the tool returns `isSuccess: false` |
+| `PROPERTY_RECOMMENDER_TIMEOUT_SECONDS` | `30` | Request timeout for the property recommender LLM |
 
 ---
 

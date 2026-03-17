@@ -2,14 +2,26 @@ import os
 import sys
 import glob
 import hashlib
+import json
 import pickle
+import urllib.error
+import urllib.request
 import rdflib
 import numpy as np
-import requests as _requests
 from rdflib.namespace import RDF, RDFS, OWL
+from sentence_transformers import SentenceTransformer
 import logging
 
+# Prevent noisy logs from interfering with MCP stdout
+logging.getLogger("sentence_transformers").setLevel(logging.ERROR)
 logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("transformers").setLevel(logging.ERROR)
+
+try:
+    from huggingface_hub import logging as hf_logging
+    hf_logging.set_verbosity_error()
+except ImportError:
+    pass
 
 SHACL = rdflib.Namespace("http://www.w3.org/ns/shacl#")
 
@@ -18,44 +30,62 @@ _CACHE_VERSION = "3"
 
 
 class _RemoteEmbeddingModel:
-    """Minimal SentenceTransformer-compatible client for a remote OpenAI-compatible embedding API."""
+    """OpenAI-compatible remote embedding client with a SentenceTransformer-like encode API."""
 
-    def __init__(self, api_url: str, model: str, api_key: str = "no-key"):
-        self._api_url = api_url
-        self._model = model
-        self._headers = {"Authorization": f"Bearer {api_key}"}
+    def __init__(
+        self,
+        api_url: str,
+        model_name: str,
+        api_key: str = "",
+        timeout: float = 60,
+    ) -> None:
+        self.api_url = api_url.rstrip("/")
+        self.model_name = model_name
+        self.api_key = api_key
+        self.timeout = timeout
 
     def encode(self, text, batch_size=None, show_progress_bar=False, **kwargs):
         single = isinstance(text, str)
         texts = [text] if single else list(text)
-        resp = _requests.post(
-            self._api_url,
-            headers=self._headers,
-            json={"input": texts, "model": self._model, "truncate_prompt_tokens": 256},
-            timeout=60,
+        payload = {
+            "model": self.model_name,
+            "input": texts,
+        }
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+
+        request = urllib.request.Request(
+            self.api_url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
         )
-        resp.raise_for_status()
-        data = resp.json()["data"]
-        vecs = [item["embedding"] for item in sorted(data, key=lambda x: x["index"])]
-        result = np.array(vecs)
+        try:
+            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+                body = json.loads(response.read().decode("utf-8"))
+        except urllib.error.HTTPError as exc:
+            detail = exc.read().decode("utf-8", errors="replace")
+            raise RuntimeError(f"Remote embedding HTTP {exc.code}: {detail}") from exc
+        except urllib.error.URLError as exc:
+            raise RuntimeError(f"Remote embedding request failed: {exc.reason}") from exc
+
+        items = body.get("data", [])
+        if not isinstance(items, list):
+            raise RuntimeError(f"Remote embedding payload missing data list: {body}")
+        ordered = sorted(items, key=lambda item: item.get("index", 0))
+        vectors = []
+        for item in ordered:
+            embedding = item.get("embedding")
+            if not embedding:
+                raise RuntimeError(f"Remote embedding item missing vector: {item}")
+            vectors.append(np.asarray(embedding, dtype=float))
+        if len(vectors) != len(texts):
+            raise RuntimeError(
+                f"Remote embedding length mismatch: expected {len(texts)}, got {len(vectors)}"
+            )
+        result = np.asarray(vectors)
         return result[0] if single else result
-
-
-class _LocalEmbeddingModel:
-    """SentenceTransformer-backed local embedding model."""
-
-    def __init__(self, model: str):
-        from sentence_transformers import SentenceTransformer
-
-        self._model = SentenceTransformer(model)
-
-    def encode(self, text, batch_size=None, show_progress_bar=False, **kwargs):
-        return self._model.encode(
-            text,
-            batch_size=batch_size,
-            show_progress_bar=show_progress_bar,
-            **kwargs,
-        )
 
 
 class OntologyEngine:
@@ -72,14 +102,22 @@ class OntologyEngine:
         embedding_mode = os.environ.get("EMBEDDING_MODE", "local").strip().lower()
         if embedding_mode == "remote":
             api_url = os.environ.get("EMBEDDING_API_URL", "http://192.168.100.2:8082/v1/embeddings")
-            api_key = os.environ.get("EMBEDDING_API_KEY", "no-key")
+            api_key = os.environ.get("EMBEDDING_API_KEY", "")
+            timeout = float(os.environ.get("EMBEDDING_TIMEOUT_SECONDS", "60"))
             sys.stderr.write(
                 f"Initializing Remote Embedding Model ({model_name} @ {api_url})...\n"
             )
-            self.model = _RemoteEmbeddingModel(api_url, model_name, api_key)
+            self.model = _RemoteEmbeddingModel(
+                api_url=api_url,
+                model_name=model_name,
+                api_key=api_key,
+                timeout=timeout,
+            )
         else:
-            sys.stderr.write(f"Initializing Local Embedding Model ({model_name})...\n")
-            self.model = _LocalEmbeddingModel(model_name)
+            sys.stderr.write(f"Initializing Semantic Search Model ({model_name})...\n")
+            import contextlib
+            with contextlib.redirect_stdout(sys.stderr):
+                self.model = SentenceTransformer(model_name)
         self.load_ontology()
 
     @staticmethod
@@ -417,6 +455,10 @@ class OntologyEngine:
             return "http://www.w3.org/2001/XMLSchema#boolean"
         return "http://www.w3.org/2001/XMLSchema#string"
 
+    def has_class(self, class_uri: str) -> bool:
+        """Returns True when the URI is a known schema class."""
+        return class_uri in self.classes
+
     def get_candidate_relations(self, subject_types: list, object_types: list) -> list:
         """
         Finds all possible relations between two sets of types.
@@ -460,6 +502,71 @@ class OntologyEngine:
                         candidates.append({'uri': p_uri, 'path_type': 'inverse', 'bridge': None})
 
         return candidates
+
+    def get_property_candidates_for_type_pair(self, subject_type_uri: str, object_type_uri: str) -> list[dict]:
+        """
+        Builds four-direction property candidates for a subject/object type pair.
+
+        Returned dict fields:
+            uri: property URI
+            is_reverse: whether the effective triple direction is object -> subject
+            is_data_property: True for DatatypeProperty, False for ObjectProperty
+            path_type: discovery mode ('direct', 'facet', 'datatype')
+            bridge: facet class URI if applicable
+        """
+        candidates = []
+
+        # 1. subject(entity) -> object(entity)
+        for cand in self.get_candidate_relations([subject_type_uri], [object_type_uri]):
+            if cand["path_type"] == "inverse":
+                continue
+            candidates.append({
+                "uri": cand["uri"],
+                "is_reverse": False,
+                "is_data_property": False,
+                "path_type": cand["path_type"],
+                "bridge": cand["bridge"],
+            })
+
+        # 2. object(entity) -> subject(entity)
+        for cand in self.get_candidate_relations([object_type_uri], [subject_type_uri]):
+            if cand["path_type"] == "inverse":
+                continue
+            candidates.append({
+                "uri": cand["uri"],
+                "is_reverse": True,
+                "is_data_property": False,
+                "path_type": cand["path_type"],
+                "bridge": cand["bridge"],
+            })
+
+        # 3. subject(entity) -> literal
+        for uri in self.get_properties_for_class(subject_type_uri, "DatatypeProperty", include_facets=True):
+            candidates.append({
+                "uri": uri,
+                "is_reverse": False,
+                "is_data_property": True,
+                "path_type": "datatype",
+                "bridge": None,
+            })
+
+        # 4. object(entity) -> literal (effective reverse direction)
+        for uri in self.get_properties_for_class(object_type_uri, "DatatypeProperty", include_facets=True):
+            candidates.append({
+                "uri": uri,
+                "is_reverse": True,
+                "is_data_property": True,
+                "path_type": "datatype",
+                "bridge": None,
+            })
+
+        deduped = {}
+        for cand in candidates:
+            key = (cand["uri"], cand["is_reverse"], cand["is_data_property"])
+            if key not in deduped:
+                deduped[key] = cand
+
+        return list(deduped.values())
 
     def semantic_similarity(self, query, embeddings):
         """Calculates cosine similarity."""

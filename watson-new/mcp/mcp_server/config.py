@@ -58,9 +58,18 @@ Always provide semantic justification for your choices and maintain professional
 # Default directory for ontology files
 DEFAULT_ONTOLOGY_DIR = os.environ.get("ONTOLOGY_DIR", "./ontology")
 
-# Embedding model for semantic search (reads WATSON_NEW_EMBEDDING_MODEL from .env via eval.py's load_dotenv)
-EMBEDDING_MODEL = os.environ.get("WATSON_NEW_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2")
+# Embedding config for semantic search
+EMBEDDING_MODE = os.environ.get("EMBEDDING_MODE", "local").strip().lower()
+EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
+EMBEDDING_API_URL = os.environ.get(
+    "EMBEDDING_API_URL",
+    "http://192.168.100.2:8082/v1/embeddings",
+).rstrip("/")
+EMBEDDING_API_KEY = os.environ.get("EMBEDDING_API_KEY", "")
+EMBEDDING_TIMEOUT_SECONDS = float(os.environ.get("EMBEDDING_TIMEOUT_SECONDS", "60"))
 
-# Remote embedding API — reads WATSON_NEW_EMBEDDING_BASE_URL from .env via eval.py's load_dotenv
-_base = os.environ.get("WATSON_NEW_EMBEDDING_BASE_URL", "http://127.0.0.1:8082/v1")
-EMBEDDING_API_URL = _base.rstrip("/") + "/embeddings"
+# OpenAI-compatible LLM config for recommend_property
+PROPERTY_RECOMMENDER_BASE_URL = os.environ.get("PROPERTY_RECOMMENDER_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+PROPERTY_RECOMMENDER_API_KEY = os.environ.get("PROPERTY_RECOMMENDER_API_KEY", "")
+PROPERTY_RECOMMENDER_MODEL = os.environ.get("PROPERTY_RECOMMENDER_MODEL", "")
+PROPERTY_RECOMMENDER_TIMEOUT_SECONDS = float(os.environ.get("PROPERTY_RECOMMENDER_TIMEOUT_SECONDS", "30"))
