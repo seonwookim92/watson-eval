@@ -266,15 +266,23 @@ def paraphrase_stage3_verify_prompt(original: str, rewritten: str) -> str:
 def paraphrase_stage4_prompt(chunk: str) -> str:
     return textwrap.dedent(
         f"""
-        You are rewriting CTI text into relation-friendly sentences for knowledge-graph extraction.
+        You are splitting CTI text into extraction-ready sentences for knowledge-graph construction.
         ONLY PRINT THE REWRITTEN TEXT.
 
-        Rules:
-        1. Reconstruct the text into simple sentences with a clear Subject, Predicate, and Object structure.
-        2. Each sentence must express only one relation.
-        3. Preserve technical meaning and factual content.
-        4. Preserve the original order of information.
-        5. Keep explicit noun phrases. Do not reintroduce pronouns.
+        Allowed edits:
+        1. Split a sentence that expresses multiple relations into separate sentences, one relation each.
+        2. Make the grammatical subject explicit in each sentence — do not use pronouns or omit it.
+        3. Separate embedded clauses or prepositional phrases that carry an independent relation into
+           their own sentence, using only wording already present in the source.
+
+        Strict prohibitions:
+        - Do NOT convert passive voice to active voice when doing so would invert subject and object roles.
+        - Do NOT compress support or purposive verb constructions.
+          Keep "is used to install", "is designed to", "is known to", "is used for" exactly as written.
+        - Do NOT introduce verbs, predicates, or noun phrases not present in the original text.
+        - Do NOT merge or reorder relations across sentences.
+        - Do NOT omit any relation, entity, or qualifier present in the original.
+        - If a sentence already expresses exactly one clear relation, copy it unchanged.
 
         Text:
         {chunk}
@@ -285,8 +293,20 @@ def paraphrase_stage4_prompt(chunk: str) -> str:
 def paraphrase_stage4_retry_prompt(original: str, previous: str, issues: str) -> str:
     return textwrap.dedent(
         f"""
-        You are rewriting CTI text into simple SPO sentences.
-        The previous rewrite was not acceptable. Fix the issues and ONLY PRINT THE REWRITTEN TEXT.
+        You are splitting CTI text into extraction-ready sentences for knowledge-graph construction.
+        The previous rewrite failed quality checks. Fix the issues and ONLY PRINT THE REWRITTEN TEXT.
+
+        Allowed edits:
+        1. Split multi-relation sentences into separate single-relation sentences.
+        2. Make the grammatical subject explicit — no pronouns.
+        3. Separate embedded clauses carrying an independent relation using only original wording.
+
+        Strict prohibitions:
+        - Do NOT convert passive to active when doing so inverts subject and object roles.
+        - Do NOT compress support verbs. Keep "is used to install", "is designed to" exactly as written.
+        - Do NOT introduce verbs, predicates, or noun phrases not in the original.
+        - Do NOT omit any relation, entity, or qualifier.
+        - If a sentence already has one relation, copy it unchanged.
 
         Original text:
         {original}
@@ -303,14 +323,16 @@ def paraphrase_stage4_retry_prompt(original: str, previous: str, issues: str) ->
 def paraphrase_stage4_verify_prompt(original: str, rewritten: str) -> str:
     return textwrap.dedent(
         f"""
-        You are a strict CTI quality checker.
-        Compare the rewritten text with the original text.
+        You are a strict CTI quality checker for knowledge-graph extraction.
+        Compare the rewritten text with the original text and answer every field carefully.
 
         Return JSON only:
         {{
           "clear_spo": <true/false>,
           "one_relation_per_sentence": <true/false>,
           "technical_content_preserved": <true/false>,
+          "argument_roles_preserved": <true/false — no subject/object inversion occurred>,
+          "predicate_semantics_preserved": <true/false — support verbs like "is used to install" were NOT compressed to direct action verbs like "installs"; predicate meaning is unchanged>,
           "issues": "<brief description or empty string>"
         }}
 

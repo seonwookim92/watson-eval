@@ -64,7 +64,7 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit",     type=int, default=None)
     p.add_argument("--verbose",   action="store_true")
     p.add_argument("--llm-base-url", default=None)
-    p.add_argument("--embedding-mode", choices=["local", "remote"], default="local")
+    p.add_argument("--embedding-mode", choices=["local", "remote"], default=None)
     p.add_argument("--embedding-base-url", default=None)
     return p.parse_args()
 
@@ -74,9 +74,15 @@ def parse_args() -> argparse.Namespace:
 def load_ctinexus_samples(data_path: Path, limit: int | None) -> List[Dict[str, Any]]:
     samples: List[Dict[str, Any]] = []
     for fp in sorted(data_path.glob("*.json")):
+        if fp.stem.endswith("_typed"):
+            continue
         with fp.open(encoding="utf-8") as f:
             payload = json.load(f)
-        samples.append({"id": fp.stem, "file": fp.name, "text": payload.get("text", "")})
+        text = payload.get("text", "")
+        if not isinstance(text, str) or not text.strip():
+            print(f"[skip] {fp.name}: missing plain-text report body", file=sys.stderr)
+            continue
+        samples.append({"id": fp.stem, "file": fp.name, "text": text})
         if limit and len(samples) >= limit:
             break
     return samples
@@ -143,7 +149,7 @@ def main() -> int:
 
     if args.llm_base_url:
         os.environ["WATSON_NEW_LLM_BASE_URL"] = args.llm_base_url
-    if args.embedding_mode:
+    if args.embedding_mode is not None:
         os.environ["WATSON_NEW_EMBEDDING_MODE"] = args.embedding_mode
     if args.embedding_base_url:
         os.environ["WATSON_NEW_EMBEDDING_BASE_URL"] = args.embedding_base_url

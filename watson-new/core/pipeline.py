@@ -931,7 +931,6 @@ class OntologyExtractorPipeline:
         return original
 
     def _run_stage4(self, idx: int, original: str, retry_limit: int) -> str:
-        latest_safe = ""
         current = original
         issues = ""
         for attempt in range(1, retry_limit + 1):
@@ -949,14 +948,11 @@ class OntologyExtractorPipeline:
             technical_ok = bool(check.get("technical_content_preserved", False)) if isinstance(check, dict) else False
             clear_spo = bool(check.get("clear_spo", False)) if isinstance(check, dict) else False
             one_relation = bool(check.get("one_relation_per_sentence", False)) if isinstance(check, dict) else False
-            if technical_ok:
-                latest_safe = current
-            if technical_ok and clear_spo and one_relation:
+            roles_ok = bool(check.get("argument_roles_preserved", False)) if isinstance(check, dict) else False
+            semantics_ok = bool(check.get("predicate_semantics_preserved", False)) if isinstance(check, dict) else False
+            if technical_ok and clear_spo and one_relation and roles_ok and semantics_ok:
                 return current
-        if latest_safe:
-            self._log(logging.WARNING, "[3-4] Chunk %s accepted latest technically safe rewrite", idx)
-            return latest_safe
-        self._log(logging.WARNING, "[3-4] Chunk %s kept input after retries", idx)
+        self._log(logging.WARNING, "[3-4] Chunk %s falling back to stage2 output", idx)
         return original
 
     def _paraphrase_single_chunk(self, idx: int, chunk_path: Path, retry_limit: int) -> Path:
@@ -970,8 +966,7 @@ class OntologyExtractorPipeline:
         current = self._run_stage1(idx, current, retry_limit)
         current = self._run_stage2(idx, current, retry_limit)
         # current = self._run_stage3(idx, current, retry_limit)
-        # current = self._run_stage4(idx, current, retry_limit)
-        # Temporarily bypass stage 3/4 and feed stage 1/2 output directly into extraction.
+        current = self._run_stage4(idx, current, retry_limit)
         out.write_text(current, encoding="utf-8")
         return out
 
@@ -2253,6 +2248,9 @@ class OntologyExtractorPipeline:
                 embedding_mode=str(self.config["embedding"].get("mode", "local")),
                 embedding_base_url=str(self.config["embedding"].get("base_url", "")),
                 embedding_model=str(self.config["embedding"].get("model", "")),
+                embedding_truncate_prompt_tokens=int(
+                    self.config["embedding"].get("truncate_prompt_tokens", 256)
+                ),
                 embedding_api_key=str(self.config["embedding"].get("api_key", "")),
                 property_recommender_base_url=str(self.config["llm"].get("base_url", "")),
                 property_recommender_model=str(self.config["llm"].get("model", "")),

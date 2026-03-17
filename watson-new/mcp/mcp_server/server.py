@@ -111,6 +111,7 @@ def _call_property_recommender_llm(messages: list[dict[str, str]]) -> str:
         "model": PROPERTY_RECOMMENDER_MODEL,
         "messages": messages,
         "temperature": 0,
+        "chat_template_kwargs": {"enable_thinking": False},
     }
     headers = {"Content-Type": "application/json"}
     if PROPERTY_RECOMMENDER_API_KEY:

@@ -9,7 +9,6 @@ import urllib.request
 import rdflib
 import numpy as np
 from rdflib.namespace import RDF, RDFS, OWL
-from sentence_transformers import SentenceTransformer
 import logging
 
 # Prevent noisy logs from interfering with MCP stdout
@@ -36,11 +35,13 @@ class _RemoteEmbeddingModel:
         self,
         api_url: str,
         model_name: str,
+        truncate_prompt_tokens: int = 256,
         api_key: str = "",
         timeout: float = 60,
     ) -> None:
         self.api_url = api_url.rstrip("/")
         self.model_name = model_name
+        self.truncate_prompt_tokens = truncate_prompt_tokens
         self.api_key = api_key
         self.timeout = timeout
 
@@ -50,6 +51,7 @@ class _RemoteEmbeddingModel:
         payload = {
             "model": self.model_name,
             "input": texts,
+            "truncate_prompt_tokens": self.truncate_prompt_tokens,
         }
         headers = {"Content-Type": "application/json"}
         if self.api_key:
@@ -104,17 +106,20 @@ class OntologyEngine:
             api_url = os.environ.get("EMBEDDING_API_URL", "http://192.168.100.2:8082/v1/embeddings")
             api_key = os.environ.get("EMBEDDING_API_KEY", "")
             timeout = float(os.environ.get("EMBEDDING_TIMEOUT_SECONDS", "60"))
+            truncate_prompt_tokens = int(os.environ.get("EMBEDDING_TRUNCATE_PROMPT_TOKENS", "256"))
             sys.stderr.write(
                 f"Initializing Remote Embedding Model ({model_name} @ {api_url})...\n"
             )
             self.model = _RemoteEmbeddingModel(
                 api_url=api_url,
                 model_name=model_name,
+                truncate_prompt_tokens=truncate_prompt_tokens,
                 api_key=api_key,
                 timeout=timeout,
             )
         else:
             sys.stderr.write(f"Initializing Semantic Search Model ({model_name})...\n")
+            from sentence_transformers import SentenceTransformer
             import contextlib
             with contextlib.redirect_stdout(sys.stderr):
                 self.model = SentenceTransformer(model_name)

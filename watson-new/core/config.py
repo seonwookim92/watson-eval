@@ -19,7 +19,7 @@ def _load_env() -> Dict[str, str]:
 
 
 def _e(env: Dict[str, str], key: str, default: str = "") -> str:
-    return env.get(key) or os.getenv(key, default)
+    return os.getenv(key) or env.get(key) or default
 
 
 def default_config() -> Dict[str, Any]:

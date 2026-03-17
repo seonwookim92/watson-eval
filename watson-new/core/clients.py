@@ -256,6 +256,7 @@ class MCPStdioClient:
         embedding_mode: str = "local",
         embedding_base_url: str = "",
         embedding_model: str = "",
+        embedding_truncate_prompt_tokens: int = 256,
         embedding_api_key: str = "",
         property_recommender_base_url: str = "",
         property_recommender_model: str = "",
@@ -269,6 +270,7 @@ class MCPStdioClient:
         self.embedding_mode = embedding_mode.strip().lower()
         self.embedding_base_url = embedding_base_url.rstrip("/")
         self.embedding_model = embedding_model
+        self.embedding_truncate_prompt_tokens = embedding_truncate_prompt_tokens
         self.embedding_api_key = embedding_api_key
         self.property_recommender_base_url = property_recommender_base_url.rstrip("/")
         self.property_recommender_model = property_recommender_model
@@ -286,6 +288,7 @@ class MCPStdioClient:
             env["EMBEDDING_API_URL"] = f"{self.embedding_base_url}/embeddings"
         if self.embedding_model:
             env["EMBEDDING_MODEL"] = self.embedding_model
+        env["EMBEDDING_TRUNCATE_PROMPT_TOKENS"] = str(self.embedding_truncate_prompt_tokens)
         if self.embedding_api_key and self.embedding_mode == "remote":
             env["EMBEDDING_API_KEY"] = self.embedding_api_key
         if self.property_recommender_base_url:
