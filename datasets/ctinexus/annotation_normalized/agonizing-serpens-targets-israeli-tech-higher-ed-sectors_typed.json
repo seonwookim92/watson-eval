@@ -1,0 +1,651 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "destructive cyberattacks",
+            "relation": "began in",
+            "object": "January 2023",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO represents event timing with dateTime-style properties rather than a direct object relation to a standalone Time node here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation for campaign start time to a standalone Time node surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models campaign timing with dateTime properties rather than a direct object relation to a standalone Time node here."
+            }
+        },
+        {
+            "subject": "destructive cyberattacks",
+            "relation": "continued as recently as",
+            "object": "October 2023",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO represents last-seen or ongoing event timing with dateTime-style properties rather than a direct object relation to a standalone Time node here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation for recent/last-observed campaign timing to a standalone Time node surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models recent or last-observed campaign timing with dateTime properties rather than a direct object relation to a standalone Time node here."
+            }
+        },
+        {
+            "subject": "destructive cyberattacks",
+            "relation": "targeted",
+            "object": "education and technology sectors",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'targeted' surfaced for Event -> Organization."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "targets",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "education and technology sectors",
+            "relation": "are located in",
+            "object": "Israel",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'are located in' surfaced for Organization -> Location."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'are located in' surfaced for Organization -> Country."
+            },
+            "relation_stix_type": {
+                "name": "located-at",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#located-at",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "attackers",
+            "relation": "attempted to steal",
+            "object": "sensitive data",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'attempted to steal' surfaced for Person -> ContentData."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The phrase is closer to theft/exfiltration intent than a generic targets relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The phrase is closer to theft/exfiltration intent than a generic compromises relation."
+            }
+        },
+        {
+            "subject": "sensitive data",
+            "relation": "includes",
+            "object": "personally identifiable information (PII)",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for conceptual inclusion/classification surfaced between standalone data nodes here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for conceptual inclusion between a generic sensitive-data node and a PII node surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX does not expose a direct object relation for conceptual inclusion between standalone data nodes here."
+            }
+        },
+        {
+            "subject": "sensitive data",
+            "relation": "includes",
+            "object": "intellectual property",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for conceptual inclusion/classification surfaced between standalone data nodes here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for conceptual inclusion between a generic sensitive-data node and an intellectual-property node surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX does not expose a direct object relation for conceptual inclusion between standalone data nodes here."
+            }
+        },
+        {
+            "subject": "attackers",
+            "relation": "deployed",
+            "object": "wipers",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'deployed' surfaced for Person -> MaliciousTool."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for a threat actor deploying/using wipers."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for a threat actor deploying/using wipers."
+            }
+        },
+        {
+            "subject": "wipers",
+            "relation": "intended to achieve",
+            "object": "cover the attackers' tracks",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'intended to achieve' surfaced for MaliciousTool -> ActionPattern; UCO would model this through intermediate action/objective structures."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "An intended effect/outcome is not well captured by a generic uses relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "An intended effect/outcome is not well captured by a generic uses relation."
+            }
+        },
+        {
+            "subject": "wipers",
+            "relation": "intended to achieve",
+            "object": "render the infected endpoints unusable",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'intended to achieve' surfaced for MaliciousTool -> ActionPattern; UCO would model this through intermediate action/objective structures."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "An intended effect/outcome is not well captured by a generic uses relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "An intended effect/outcome is not well captured by a generic uses relation."
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "destructive cyberattacks",
+            "entity_type": "Event",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Event",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/core/Event",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Campaign",
+                "uri": "http://idea.rpi.edu/malont#Campaign",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the series of destructive cyberattacks to Campaign as the closest MALOnt class for coordinated attacks over time against specific targets."
+            },
+            "entity_stix_type": {
+                "name": "Campaign",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Campaign",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the series of destructive cyberattacks to Campaign as the closest STIX class for sustained attacks over time against a target set."
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "January 2023",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct UCO Time/Date class surfaced from the loaded ontology for a standalone temporal node like January 2023."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology models timing through dateTime properties rather than a standalone Time SDO for January 2023."
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "October 2023",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct UCO Time/Date class surfaced from the loaded ontology for a standalone temporal node like October 2023."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology models timing through dateTime properties rather than a standalone Time SDO for October 2023."
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "education and technology sectors",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest group-level identity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest MALOnt class for an attacked collective."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "Israel",
+            "entity_type": "Location",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Location",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/location/Location",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Country",
+                "uri": "http://idea.rpi.edu/malont#Country",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Location",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Location",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "attackers",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "sensitive data",
+            "entity_type": "Information",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ContentData",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/ContentData",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Closest UCO class surfaced for stolen digital information/data was ContentData."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct MALOnt information/data-content class surfaced for a standalone sensitive-data node."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX Observed Data models concrete observed cyber objects, which is too broad/off-target for this abstract information entity."
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "personally identifiable information (PII)",
+            "entity_type": "Information",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ContentData",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/ContentData",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped PII to ContentData as the closest digital-information class surfaced in UCO."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct MALOnt class surfaced for a standalone PII data-content node."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX Observed Data models concrete observed cyber objects, which is too broad/off-target for this abstract information entity."
+            }
+        },
+        {
+            "entity_id": 8,
+            "entity_name": "intellectual property",
+            "entity_type": "Information",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ContentData",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/ContentData",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped intellectual property to ContentData as the closest digital-information class surfaced in UCO."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct MALOnt class surfaced for a standalone intellectual-property data-content node."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX Observed Data models concrete observed cyber objects, which is too broad/off-target for this abstract information entity."
+            }
+        },
+        {
+            "entity_id": 9,
+            "entity_name": "wipers",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated wiper class here; MaliciousTool is the closest malicious software/tool abstraction."
+            },
+            "entity_malont_type": {
+                "name": "Wiper",
+                "uri": "http://idea.rpi.edu/malont#Wiper",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX exposes Malware as the closest class; the loaded ontology does not expose a dedicated Wiper class."
+            }
+        },
+        {
+            "entity_id": 10,
+            "entity_name": "cover the attackers' tracks",
+            "entity_type": "Malware Characteristic:Behavior",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the anti-forensics behavior to ActionPattern as the closest UCO class for a repeatable malicious behavior."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the anti-forensics behavior to AttackPattern as the closest MALOnt behavior-oriented class."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the anti-forensics behavior to Attack Pattern as the closest STIX behavior-oriented class."
+            }
+        },
+        {
+            "entity_id": 11,
+            "entity_name": "render the infected endpoints unusable",
+            "entity_type": "Malware Characteristic:Behavior",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the destructive impact behavior to ActionPattern as the closest UCO class for a repeatable malicious behavior."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the destructive impact behavior to AttackPattern as the closest MALOnt behavior-oriented class."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the destructive impact behavior to Attack Pattern as the closest STIX behavior-oriented class."
+            }
+        }
+    ],
+    "implicit_triplets": [
+        {
+            "subject": "destructive cyberattacks",
+            "relation": "attempt to steal",
+            "object": "sensitive data",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'attempt to steal' surfaced for Event -> ContentData."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for the campaign targeting sensitive data for theft."
+            },
+            "relation_stix_type": {
+                "name": "compromises",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#compromises",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for the campaign compromising sensitive data through attempted theft."
+            }
+        }
+    ]
+}

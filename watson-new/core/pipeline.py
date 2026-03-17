@@ -55,6 +55,8 @@ from .prompts import (
     paraphrase_stage4_verify_prompt,
     predicate_match_select_prompt,
     predicate_query_expansion_prompt,
+    qualifier_node_worthiness_prompt,
+    span_normalization_prompt,
     triplet_prompt,
     type_match_select_prompt,
 )
@@ -1375,6 +1377,400 @@ class OntologyExtractorPipeline:
                     "objectIoCType": "",
                 })
         return chunk_triplets
+
+    @staticmethod
+    def _word_count(text: str) -> int:
+        return len([part for part in re.split(r"\s+", clean_text(text)) if part])
+
+    @staticmethod
+    def _contains_relation_signal(text: str) -> bool:
+        lowered = f" {clean_text(text).casefold()} "
+        signals = (
+            " in ",
+            " for ",
+            " by ",
+            " against ",
+            " from ",
+            " with ",
+            " such as ",
+            " including ",
+            " used to ",
+            " designed to ",
+        )
+        return any(signal in lowered for signal in signals)
+
+    @staticmethod
+    def _looks_like_product_version(text: str) -> bool:
+        cleaned = clean_text(text)
+        if not cleaned:
+            return False
+        if re.search(r"\b(?:version|ver\.)\s*\d", cleaned, flags=re.IGNORECASE):
+            return True
+        return bool(
+            re.search(
+                r"\b(?:iOS|Android|Windows|macOS|Linux|Chrome|Safari|Firefox|Exchange|Office)\s+\d+(?:\.\d+){0,3}\b",
+                cleaned,
+                flags=re.IGNORECASE,
+            )
+        )
+
+    @staticmethod
+    def _looks_like_named_org_or_team(text: str) -> bool:
+        cleaned = clean_text(text)
+        if not cleaned:
+            return False
+        if "(" in cleaned and ")" in cleaned:
+            return True
+        tokens = cleaned.split()
+        if len(tokens) >= 2 and all(token[:1].isupper() or token.lower() in {"the", "of", "and", "&"} for token in tokens):
+            return True
+        return any(
+            keyword in cleaned.casefold()
+            for keyword in (" lab", " team", " group", " inc", " ltd", " llc", " corp", " corporation", " company")
+        )
+
+    @staticmethod
+    def _looks_like_fixed_malware_or_tool_name(text: str) -> bool:
+        cleaned = clean_text(text)
+        lowered = cleaned.casefold()
+        return any(
+            lowered.endswith(suffix)
+            for suffix in (
+                " spyware",
+                " ransomware",
+                " malware",
+                " trojan",
+                " backdoor",
+                " loader",
+                " stealer",
+                " botnet",
+                " exploit kit",
+            )
+        )
+
+    def _is_protected_entity_span(self, text: str) -> bool:
+        cleaned = clean_text(text)
+        if not cleaned:
+            return True
+        if re.search(r"\bCVE-\d{4}-\d{4,7}\b", cleaned):
+            return True
+        if self._looks_like_product_version(cleaned):
+            return True
+        if self._looks_like_named_org_or_team(cleaned):
+            return True
+        if self._looks_like_fixed_malware_or_tool_name(cleaned):
+            return True
+        if self._ioc_matches(cleaned):
+            return True
+        return False
+
+    def _should_consider_span_normalization(self, text: str) -> bool:
+        cleaned = clean_text(text)
+        if not cleaned:
+            return False
+        if self._is_protected_entity_span(cleaned):
+            return False
+        max_words_without_signal = int(
+            self.config.get("span_normalization", {}).get("max_words_without_signal", 3)
+        )
+        if self._contains_relation_signal(cleaned):
+            return True
+        return self._word_count(cleaned) > max_words_without_signal
+
+    def _normalize_triplet_span(
+        self,
+        row: Dict[str, Any],
+        role: str,
+    ) -> Tuple[str, List[Dict[str, str]], Optional[Dict[str, Any]]]:
+        span = str(row.get(role, "") or "")
+        if not self._should_consider_span_normalization(span):
+            return span, [], None
+
+        try:
+            parsed = self.llm.chat_json(
+                span_normalization_prompt(
+                    sentence=str(row.get("source_sentence", "") or ""),
+                    subject=str(row.get("subject", "") or ""),
+                    predicate=str(row.get("predicate", "") or ""),
+                    obj=str(row.get("object", "") or ""),
+                    role=role,
+                    span=span,
+                ),
+                trace_context={
+                    "event": "span_normalization",
+                    "role": role,
+                    "span": span,
+                    "row_id": row.get("id"),
+                },
+            )
+        except Exception as e:
+            self._log(logging.WARNING, "[5.5] Span normalization failed for %s '%s': %s", role, span, e)
+            return span, [], None
+
+        if not isinstance(parsed, dict):
+            return span, [], None
+
+        decision = str(parsed.get("decision", "keep") or "keep").strip().lower()
+        canonical = clean_text(parsed.get("canonical_span", "") or span)
+        confidence = float(parsed.get("confidence", 0.0) or 0.0)
+        threshold = float(self.config.get("span_normalization", {}).get("min_confidence", 0.8))
+        if confidence < threshold or decision not in {"keep", "rewrite_head", "split"}:
+            return span, [], None
+        if decision == "keep" or not canonical:
+            return span, [], None
+
+        qualifiers: List[Dict[str, str]] = []
+        raw_qualifiers = parsed.get("qualifiers", [])
+        if isinstance(raw_qualifiers, list):
+            for item in raw_qualifiers[:3]:
+                if not isinstance(item, dict):
+                    continue
+                relation_hint = clean_text(item.get("relation_hint", ""))
+                value = clean_text(item.get("value", ""))
+                if relation_hint and value and value != canonical:
+                    qualifiers.append({"relation_hint": relation_hint, "value": value})
+
+        metadata = {
+            "decision": decision,
+            "original_span": span,
+            "canonical_span": canonical,
+            "qualifiers": qualifiers,
+            "confidence": confidence,
+            "reason": str(parsed.get("reason", "") or ""),
+        }
+        return canonical, qualifiers if decision == "split" else [], metadata
+
+    def _recompose_triplet_from_qualifiers(
+        self,
+        row: Dict[str, Any],
+        canonical_span: str,
+        qualifiers: List[Dict[str, str]],
+    ) -> List[Dict[str, Any]]:
+        extra_rows: List[Dict[str, Any]] = []
+        for item in qualifiers:
+            relation_hint = clean_text(item.get("relation_hint", ""))
+            value = clean_text(item.get("value", ""))
+            if not relation_hint or not value:
+                continue
+            judge = self._judge_qualifier_node_worthiness(
+                row=row,
+                canonical_span=canonical_span,
+                relation_hint=relation_hint,
+                qualifier_value=value,
+            )
+            self._log_qualifier_judge(
+                row_id=row.get("id"),
+                canonical_span=canonical_span,
+                relation_hint=relation_hint,
+                qualifier_value=value,
+                judge=judge,
+            )
+            if not self._should_promote_qualifier(judge):
+                continue
+            extra_rows.append({
+                "id": -1,
+                "source_sentence": row["source_sentence"],
+                "source_chunk": row["source_chunk"],
+                "subject": canonical_span,
+                "subject_description": "",
+                "predicate": relation_hint,
+                "object": value,
+                "object_description": "",
+                "isSubjectIoC": False,
+                "isObjectIoC": False,
+                "subjectIoCType": "",
+                "objectIoCType": "",
+            })
+        return extra_rows
+
+    def _judge_qualifier_node_worthiness(
+        self,
+        row: Dict[str, Any],
+        canonical_span: str,
+        relation_hint: str,
+        qualifier_value: str,
+    ) -> Dict[str, Any]:
+        if not bool(self.config.get("qualifier_judge", {}).get("enabled", True)):
+            return {
+                "is_node_worthy": True,
+                "category": "entity",
+                "suggested_handling": "promote_node",
+                "confidence": 1.0,
+                "reason": "Qualifier judge disabled",
+            }
+
+        qualifier_memory = self._entity_memory_summary(qualifier_value)
+        try:
+            parsed = self.llm.chat_json(
+                qualifier_node_worthiness_prompt(
+                    sentence=str(row.get("source_sentence", "") or ""),
+                    subject=str(row.get("subject", "") or ""),
+                    predicate=str(row.get("predicate", "") or ""),
+                    obj=str(row.get("object", "") or ""),
+                    canonical_span=canonical_span,
+                    role="subject" if str(row.get("subject", "")) == canonical_span else "object",
+                    relation_hint=relation_hint,
+                    qualifier_value=qualifier_value,
+                    entity_memory=qualifier_memory,
+                ),
+                trace_context={
+                    "event": "qualifier_node_worthiness",
+                    "row_id": row.get("id"),
+                    "canonical_span": canonical_span,
+                    "relation_hint": relation_hint,
+                    "qualifier_value": qualifier_value,
+                },
+            )
+        except Exception as e:
+            self._log(
+                logging.WARNING,
+                "[5.6] Qualifier judge failed for '%s' (%s): %s",
+                qualifier_value,
+                relation_hint,
+                e,
+            )
+            return {
+                "is_node_worthy": False,
+                "category": "noise",
+                "suggested_handling": "keep_as_qualifier",
+                "confidence": 0.0,
+                "reason": f"Judge failure: {e}",
+            }
+
+        if not isinstance(parsed, dict):
+            return {
+                "is_node_worthy": False,
+                "category": "noise",
+                "suggested_handling": "keep_as_qualifier",
+                "confidence": 0.0,
+                "reason": "Invalid qualifier judge response",
+            }
+        return parsed
+
+    def _should_promote_qualifier(self, judge: Dict[str, Any]) -> bool:
+        confidence = float(judge.get("confidence", 0.0) or 0.0)
+        threshold = float(self.config.get("qualifier_judge", {}).get("min_confidence", 0.75))
+        handling = str(judge.get("suggested_handling", "") or "").strip().lower()
+        is_node_worthy = bool(judge.get("is_node_worthy", False))
+        category = str(judge.get("category", "") or "").strip().lower()
+        return (
+            is_node_worthy
+            and handling == "promote_node"
+            and category == "entity"
+            and confidence >= threshold
+        )
+
+    def _log_qualifier_judge(
+        self,
+        row_id: Any,
+        canonical_span: str,
+        relation_hint: str,
+        qualifier_value: str,
+        judge: Dict[str, Any],
+    ) -> None:
+        self._log(
+            logging.INFO,
+            (
+                '[5.6][judge] triplet=%s | canonical="%s" | relation_hint=%s | qualifier="%s" '
+                '| node_worthy=%s | category=%s | handling=%s | confidence=%.2f | reason=%s'
+            ),
+            row_id,
+            canonical_span,
+            relation_hint,
+            qualifier_value,
+            bool(judge.get("is_node_worthy", False)),
+            str(judge.get("category", "") or ""),
+            str(judge.get("suggested_handling", "") or ""),
+            float(judge.get("confidence", 0.0) or 0.0),
+            str(judge.get("reason", "") or ""),
+        )
+
+    def _log_span_normalization(
+        self,
+        row_id: Any,
+        role: str,
+        metadata: Dict[str, Any],
+        derived_count: int,
+    ) -> None:
+        decision = str(metadata.get("decision", "") or "")
+        original_span = str(metadata.get("original_span", "") or "")
+        canonical_span = str(metadata.get("canonical_span", "") or "")
+        confidence = float(metadata.get("confidence", 0.0) or 0.0)
+        qualifiers = metadata.get("qualifiers", []) or []
+        reason = str(metadata.get("reason", "") or "")
+
+        qualifier_text = ", ".join(
+            f'{item.get("relation_hint", "")}:{item.get("value", "")}'
+            for item in qualifiers
+            if isinstance(item, dict)
+        ) or "-"
+
+        self._log(
+            logging.INFO,
+            '[5.5][%s] triplet=%s role=%s | "%s" -> "%s" | confidence=%.2f | qualifiers=%s | derived=%s | reason=%s',
+            decision,
+            row_id,
+            role,
+            original_span,
+            canonical_span,
+            confidence,
+            qualifier_text,
+            derived_count,
+            reason,
+        )
+
+    def node_triplet_normalization(self) -> None:
+        self._log(logging.INFO, "[5.5] Triplet Span Normalization start")
+        if not bool(self.config.get("span_normalization", {}).get("enabled", True)):
+            self._log(logging.INFO, "[5.5] Triplet Span Normalization disabled")
+            return
+
+        normalized_rows: List[Dict[str, Any]] = []
+        next_id = 0
+        for original in self.triplets:
+            row = dict(original)
+            extra_rows: List[Dict[str, Any]] = []
+            normalizations: List[Dict[str, Any]] = []
+
+            for role in ("subject", "object"):
+                canonical, qualifiers, metadata = self._normalize_triplet_span(row, role)
+                if metadata:
+                    row[role] = canonical
+                    normalizations.append({"role": role, **metadata})
+                    self._log_span_normalization(
+                        row.get("id"),
+                        role,
+                        metadata,
+                        len(qualifiers),
+                    )
+                    if qualifiers:
+                        extra_rows.extend(
+                            self._recompose_triplet_from_qualifiers(row, canonical, qualifiers)
+                        )
+
+            row["id"] = next_id
+            next_id += 1
+            if normalizations:
+                row["span_normalization"] = normalizations
+            normalized_rows.append(row)
+
+            for extra in extra_rows:
+                extra["id"] = next_id
+                next_id += 1
+                extra["span_normalization"] = [{
+                    "role": "derived",
+                    "decision": "recomposed",
+                    "original_span": "",
+                    "canonical_span": extra["subject"],
+                    "qualifiers": [],
+                    "confidence": 1.0,
+                    "reason": "Derived from high-confidence split qualifier",
+                }]
+                normalized_rows.append(extra)
+
+        self.triplets = normalized_rows
+        self._write_json(self.intermediate / "triplets.json", self.triplets)
+        self._log(logging.INFO, "[5.5] Triplet Span Normalization completed: %s triplets", len(self.triplets))
 
     def node_triplet_extraction(self) -> None:
         self._log(logging.INFO, "[5] Triplet Extraction start")
@@ -3061,12 +3457,16 @@ class OntologyExtractorPipeline:
             pipeline.node_paraphrasing()
             return state
 
-        def entity_extraction(state: PipelineState) -> PipelineState:
-            pipeline.node_entity_extraction()
-            return state
-
         def triplet_extraction(state: PipelineState) -> PipelineState:
             pipeline.node_triplet_extraction()
+            return state
+
+        def triplet_normalization(state: PipelineState) -> PipelineState:
+            pipeline.node_triplet_normalization()
+            return state
+
+        def entity_extraction(state: PipelineState) -> PipelineState:
+            pipeline.node_entity_extraction()
             return state
 
         def ioc_detection(state: PipelineState) -> PipelineState:
@@ -3093,8 +3493,9 @@ class OntologyExtractorPipeline:
         builder.add_node("pre_processing", pre_processing)
         builder.add_node("chunking", chunking)
         builder.add_node("paraphrasing", paraphrasing)
-        builder.add_node("entity_extraction", entity_extraction)
         builder.add_node("triplet_extraction", triplet_extraction)
+        builder.add_node("triplet_normalization", triplet_normalization)
+        builder.add_node("entity_extraction", entity_extraction)
         builder.add_node("ioc_detection", ioc_detection)
         builder.add_node("type_matching", type_matching)
         builder.add_node("internal_entity_resolution", internal_entity_resolution)
@@ -3105,7 +3506,8 @@ class OntologyExtractorPipeline:
         builder.add_edge("pre_processing", "chunking")
         builder.add_edge("chunking", "paraphrasing")
         builder.add_edge("paraphrasing", "triplet_extraction")
-        builder.add_edge("triplet_extraction", "entity_extraction")
+        builder.add_edge("triplet_extraction", "triplet_normalization")
+        builder.add_edge("triplet_normalization", "entity_extraction")
         builder.add_edge("entity_extraction", "ioc_detection")
         builder.add_edge("ioc_detection", "type_matching")
         builder.add_edge("type_matching", "internal_entity_resolution")
@@ -3153,6 +3555,7 @@ class OntologyExtractorPipeline:
         _run("node_chunking",                  self.node_chunking)
         _run("node_paraphrasing",              self.node_paraphrasing)
         _run("node_triplet_extraction",        self.node_triplet_extraction)
+        _run("node_triplet_normalization",     self.node_triplet_normalization)
         _run("node_entity_extraction",         self.node_entity_extraction)
         _run("node_ioc_detection",             self.node_ioc_detection)
         _run("node_type_matching",             self.node_type_matching)
@@ -3189,6 +3592,7 @@ class OntologyExtractorPipeline:
         _run("node_chunking",            self.node_chunking)
         _run("node_paraphrasing",        self.node_paraphrasing)
         _run("node_triplet_extraction",  self.node_triplet_extraction)
+        _run("node_triplet_normalization", self.node_triplet_normalization)
         _run("node_entity_extraction",   self.node_entity_extraction)
         _run("node_ioc_detection",       self.node_ioc_detection)
         _run("node_type_matching",       self.node_type_matching)

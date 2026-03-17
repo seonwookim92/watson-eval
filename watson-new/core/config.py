@@ -63,6 +63,15 @@ def default_config() -> Dict[str, Any]:
             "triplet_extraction": 3,
             "data_insert": 3,
         },
+        "span_normalization": {
+            "enabled": True,
+            "min_confidence": 0.8,
+            "max_words_without_signal": 3,
+        },
+        "qualifier_judge": {
+            "enabled": True,
+            "min_confidence": 0.75,
+        },
         "entity_resolution": {"top_k": 10, "min_similarity": 0.6},
         "parallel_batch_size": 6,
     }

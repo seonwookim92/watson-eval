@@ -1,0 +1,482 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "3AM",
+            "relation": "is",
+            "object": "ransomware",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        },
+        {
+            "subject": "Symantec's Threat Hunter Team",
+            "relation": "observed",
+            "object": "a ransomware affiliate",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'observed' surfaced for Organization -> Person."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'observed' surfaced for Organization -> ThreatActor."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Observation/reporting by an organization is not the same as a STIX investigates relation."
+            }
+        },
+        {
+            "subject": "a ransomware affiliate",
+            "relation": "attempted to deploy",
+            "object": "LockBit",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'attempted to deploy' surfaced for Person -> MaliciousTool."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for a threat actor using/deploying LockBit."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for the threat actor using/deploying LockBit."
+            }
+        },
+        {
+            "subject": "a ransomware affiliate",
+            "relation": "switched to",
+            "object": "3AM",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'switched to' surfaced for Person -> MaliciousTool."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for the affiliate switching to use 3AM."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for the threat actor switching to use 3AM."
+            }
+        },
+        {
+            "subject": "3AM",
+            "relation": "is written in",
+            "object": "Rust",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for implementation language here; UCO models this more naturally via the datatype property 'language'."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'is written in' surfaced for Malware -> Software."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX surfaces implementation language as the datatype property 'implementation_languages', not as a direct object relation to a Software node here."
+            }
+        },
+        {
+            "subject": "3AM",
+            "relation": "attempts to stop",
+            "object": "multiple services",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'attempts to stop' surfaced for MaliciousTool -> WindowsService; UCO would model this more naturally through an intermediate action structure."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for malware acting against the service infrastructure to disable it."
+            },
+            "relation_stix_type": {
+                "name": "targets",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#targets",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for malware acting against service infrastructure to disable it."
+            }
+        },
+        {
+            "subject": "3AM",
+            "relation": "encrypts",
+            "object": "files",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'encrypts' surfaced for MaliciousTool -> File; UCO would model this more naturally through an intermediate action/effect structure."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for malware acting against files to encrypt them."
+            },
+            "relation_stix_type": {
+                "name": "compromises",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#compromises",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for malware compromising files by encrypting them."
+            }
+        },
+        {
+            "subject": "3AM",
+            "relation": "attempts to delete",
+            "object": "Volume Shadow (VSS) copies",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'attempts to delete' surfaced for MaliciousTool -> Volume; UCO would model this more naturally through an intermediate action/effect structure."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for malware acting against VSS backup copies."
+            },
+            "relation_stix_type": {
+                "name": "compromises",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#compromises",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for malware compromising VSS backup copies by attempting deletion."
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "3AM",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Malware class here; MaliciousTool is the closest malicious software/tool abstraction for 3AM."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "ransomware",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Malware class here; MaliciousTool is the closest class surfaced for the ransomware concept."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "Symantec's Threat Hunter Team",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "a ransomware affiliate",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "LockBit",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Malware class here; MaliciousTool is the closest malicious software/tool abstraction for LockBit."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "Rust",
+            "entity_type": "Tool",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Software",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Software",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated programming-language class here; Software is the closest implementational artifact surfaced for Rust."
+            },
+            "entity_malont_type": {
+                "name": "Software",
+                "uri": "http://idea.rpi.edu/malont#Software",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated programming-language class here; Software is the closest surfaced match for Rust."
+            },
+            "entity_stix_type": {
+                "name": "Software",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Software",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX does not expose a dedicated programming-language SDO/SCO here; Software is the closest surfaced match for Rust."
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "multiple services",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Application",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Application",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped to Application as a neutral service/application class; the source text does not explicitly specify Windows services."
+            },
+            "entity_malont_type": {
+                "name": "Infrastructure",
+                "uri": "http://idea.rpi.edu/malont#Infrastructure",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt uses Infrastructure as the closest class here because its description explicitly covers software services and supporting resources."
+            },
+            "entity_stix_type": {
+                "name": "Infrastructure",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Infrastructure",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX uses Infrastructure as the closest class here because its definition explicitly covers software services and related resources."
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "files",
+            "entity_type": "Indicator:File",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "File",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "File",
+                "uri": "http://idea.rpi.edu/malont#File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "File",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 8,
+            "entity_name": "Volume Shadow (VSS) copies",
+            "entity_type": "Indicator:File",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Volume",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Volume",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Closest UCO class surfaced for Volume Shadow copies was storage Volume rather than a dedicated VSS snapshot class."
+            },
+            "entity_malont_type": {
+                "name": "File",
+                "uri": "http://idea.rpi.edu/malont#File",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt did not surface a dedicated Volume Shadow Copy class; File is the closest storage-artifact match available here."
+            },
+            "entity_stix_type": {
+                "name": "File",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#File",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX did not surface a dedicated Volume Shadow Copy class; File is the closest observable artifact match available here."
+            }
+        }
+    ],
+    "implicit_triplets": []
+}

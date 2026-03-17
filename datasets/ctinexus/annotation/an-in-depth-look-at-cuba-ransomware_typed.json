@@ -1,0 +1,878 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "Cuba ransomware",
+            "relation": "first appeared in",
+            "object": "2019",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for malware first appearance to a standalone Time node; this would be modeled with date/time attributes."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware first appearance to a standalone Time node."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models first appearance with dateTime properties such as first_seen rather than a direct object relation to a standalone Time node."
+            }
+        },
+        {
+            "subject": "Cuba ransomware",
+            "relation": "reportedly targeted",
+            "object": "49 organizations",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'reportedly targeted' surfaced for MaliciousTool -> Organization."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "targets",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "49 organizations",
+            "relation": "included sectors",
+            "object": "government",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for assigning sectors via a standalone Organization node; this is better represented as identity metadata."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for assigning sectors to an organization collective."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models sectors with the datatype property sectors rather than a direct object relation to a standalone sector node."
+            }
+        },
+        {
+            "subject": "49 organizations",
+            "relation": "included sectors",
+            "object": "healthcare",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for assigning sectors via a standalone Organization node; this is better represented as identity metadata."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for assigning sectors to an organization collective."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models sectors with the datatype property sectors rather than a direct object relation to a standalone sector node."
+            }
+        },
+        {
+            "subject": "49 organizations",
+            "relation": "included sectors",
+            "object": "information technology",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for assigning sectors via a standalone Organization node; this is better represented as identity metadata."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for assigning sectors to an organization collective."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models sectors with the datatype property sectors rather than a direct object relation to a standalone sector node."
+            }
+        },
+        {
+            "subject": "49 organizations",
+            "relation": "included sectors",
+            "object": "manufacturing",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for assigning sectors via a standalone Organization node; this is better represented as identity metadata."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for assigning sectors to an organization collective."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models sectors with the datatype property sectors rather than a direct object relation to a standalone sector node."
+            }
+        },
+        {
+            "subject": "49 organizations",
+            "relation": "included sectors",
+            "object": "finance",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for assigning sectors via a standalone Organization node; this is better represented as identity metadata."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for assigning sectors to an organization collective."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models sectors with the datatype property sectors rather than a direct object relation to a standalone sector node."
+            }
+        },
+        {
+            "subject": "Cuba ransomware actors",
+            "relation": "infiltrated networks by",
+            "object": "encrypting files using the '.cuba' extension",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'infiltrated networks by' surfaced for Person -> ActionPattern."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for threat actors using the encryption behavior during network intrusion."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for threat actors using the encryption behavior during network intrusion."
+            }
+        },
+        {
+            "subject": "Cuba ransomware",
+            "relation": "demanded ransom totals at least",
+            "object": "$145 million",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for a ransom-demand amount; this is better modeled as an amount/value attribute."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for a ransom-demand amount to a standalone monetary-value node."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would model a ransom-demand amount through descriptive/value properties rather than a direct object relation to a standalone monetary node."
+            }
+        },
+        {
+            "subject": "Cuba ransomware",
+            "relation": "collected ransom payments totaling at least",
+            "object": "$60 million",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for a collected-payment amount; this is better modeled as an amount/value attribute."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for a collected-payment amount to a standalone monetary-value node."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would model a collected-payment amount through descriptive/value properties rather than a direct object relation to a standalone monetary node."
+            }
+        },
+        {
+            "subject": "Cuba ransomware actors",
+            "relation": "potentially connected to",
+            "object": "RomCom Remote Access Trojan (RAT) actors",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'potentially connected to' surfaced for Person -> Person."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'potentially connected to' surfaced for ThreatActor -> ThreatActor."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct STIX relation for 'potentially connected to' surfaced for Threat Actor -> Threat Actor."
+            }
+        },
+        {
+            "subject": "Cuba ransomware actors",
+            "relation": "potentially connected to",
+            "object": "Industrial Spy ransomware actors",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'potentially connected to' surfaced for Person -> Person."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'potentially connected to' surfaced for ThreatActor -> ThreatActor."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct STIX relation for 'potentially connected to' surfaced for Threat Actor -> Threat Actor."
+            }
+        },
+        {
+            "subject": "Cuba ransomware",
+            "relation": "took responsibility for",
+            "object": "a cyberattack on The Philadelphia Inquirer",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'took responsibility for' surfaced for MaliciousTool -> Event."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'took responsibility for' surfaced for Malware -> Campaign."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Attribution would run in the opposite direction here; keeping attributed-to was misleading."
+            }
+        },
+        {
+            "subject": "a cyberattack on The Philadelphia Inquirer",
+            "relation": "occurred in",
+            "object": "This month",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for event occurrence time to a standalone Time node; this would be modeled with date/time attributes."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for campaign/incident occurrence time to a standalone Time node."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models incident timing with dateTime properties rather than a direct object relation to a standalone Time node."
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "Cuba ransomware",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Malware class here; MaliciousTool is the closest malicious software/tool abstraction for Cuba ransomware."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "2019",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct UCO Time/Date class surfaced from the loaded ontology for a standalone temporal node like 2019."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology models timing through dateTime properties rather than a standalone Time SDO for 2019."
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "49 organizations",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "government",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest group-level identity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest MALOnt class for an attacked collective."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "healthcare",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest group-level identity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest MALOnt class for an attacked collective."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "information technology",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest group-level identity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest MALOnt class for an attacked collective."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "manufacturing",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest group-level identity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest MALOnt class for an attacked collective."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "finance",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest group-level identity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the sector-level target mention to Organization as the closest MALOnt class for an attacked collective."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 9,
+            "entity_name": "encrypting files using the '.cuba' extension",
+            "entity_type": "Malware Characteristic:Behavior",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the encryption behavior to ActionPattern as the closest UCO class for a repeatable malicious behavior."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the encryption behavior to AttackPattern as the closest MALOnt behavior-oriented class."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the encryption behavior to Attack Pattern as the closest STIX behavior-oriented class."
+            }
+        },
+        {
+            "entity_id": 10,
+            "entity_name": "$145 million",
+            "entity_type": "Information",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The monetary amount is not naturally modeled as a UCO ContentData object."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct MALOnt class surfaced for a standalone monetary-amount information node."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX Observed Data models concrete observed cyber objects, which is too broad/off-target for this abstract information entity."
+            }
+        },
+        {
+            "entity_id": 11,
+            "entity_name": "$60 million",
+            "entity_type": "Information",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The monetary amount is not naturally modeled as a UCO ContentData object."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct MALOnt class surfaced for a standalone monetary-amount information node."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX Observed Data models concrete observed cyber objects, which is too broad/off-target for this abstract information entity."
+            }
+        },
+        {
+            "entity_id": 8,
+            "entity_name": "Cuba ransomware actors",
+            "entity_type": "Attacker",
+            "mentions": [
+                "Industrial Spy ransomware actors",
+                "Cuba ransomware operators"
+            ],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 12,
+            "entity_name": "RomCom Remote Access Trojan (RAT) actors",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 13,
+            "entity_name": "a cyberattack on The Philadelphia Inquirer",
+            "entity_type": "Event",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Event",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/core/Event",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Campaign",
+                "uri": "http://idea.rpi.edu/malont#Campaign",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the named cyberattack incident to Campaign as the closest MALOnt class for a coordinated malicious operation."
+            },
+            "entity_stix_type": {
+                "name": "Incident",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Incident",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 14,
+            "entity_name": "This month",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct UCO Time/Date class surfaced from the loaded ontology for a standalone temporal node like This month."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology models timing through dateTime properties rather than a standalone Time SDO for This month."
+            }
+        },
+        {
+            "entity_id": 15,
+            "entity_name": "Industrial Spy ransomware actors",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        }
+    ],
+    "implicit_triplets": [
+        {
+            "subject": "Cuba ransomware actors",
+            "relation": "targeted",
+            "object": "49 organizations",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'targeted' surfaced for Person -> Organization."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "targets",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        }
+    ]
+}

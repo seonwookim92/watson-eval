@@ -1,0 +1,9 @@
+<파일명>
+ postfix로 '_typed'를 붙여 복사한뒤, 파일 한번 읽어보고, 거기에 각 triple이 있잖아?
+1. 먼저 Triple 내 S/O에 대한 Type Matching을 해보고
+2. 그리고 Triple 내 Predicate에 대한 Relationship Type Matching을 해주고
+3. 복사한 json 파일에는 entities, explicit_triplets, implicit_triplets가 있을텐데  entities의 각 entity에 대해서는 entity_uco_type, entity_malont_type, entity_stix_type 항목을 추가로 만들어서 type matching된 결과를 저장하고, explicit_triplets/implicit_triplets의 각 triplet에 대해서는 relation_uco_type, relation_malont_type, relation_stix_type 항목을 추가로 만들어서 type matching된 결과를 저장해줘.
+
+다시 한번 말하지만 원본 파일은 건들면 안돼!
+UCO, MALOnt, STIX에 대해서 각 schema에 맞는 MCP를 사용해서 작성해줘.
+그리고 기존 type matching되었었던 자료들을 참고하지 말고, 스스로 판단해서 작성해줘.

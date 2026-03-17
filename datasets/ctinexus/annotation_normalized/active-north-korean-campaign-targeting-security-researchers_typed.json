@@ -1,0 +1,486 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "Threat Actor",
+            "relation": "is located in",
+            "object": "North Korea",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'is located in' surfaced for Person -> Location."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'is located in' surfaced for ThreatActor -> Country."
+            },
+            "relation_stix_type": {
+                "name": "located-at",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#located-at",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Threat Actor",
+            "relation": "used",
+            "object": "0-day exploits",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'used' surfaced for Person -> ActionPattern."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for a threat actor using 0-day exploits."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for a threat actor using 0-day exploits."
+            }
+        },
+        {
+            "subject": "Threat Actor",
+            "relation": "targeted",
+            "object": "security researchers",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'targeted' surfaced for Person -> Organization."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "targets",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#targets",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "security researchers",
+            "relation": "worked on",
+            "object": "vulnerability research and development",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'worked on' surfaced for Organization -> Analysis."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'worked on' surfaced for Organization -> Vulnerability."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The phrase denotes work/research activity, which was broader than the STIX investigates relation."
+            }
+        },
+        {
+            "subject": "Threat Analysis Group (TAG)",
+            "relation": "disclosed campaign of",
+            "object": "Threat Actor",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'disclosed campaign of' surfaced for Organization -> Person; the disclosure is mediated by the campaign/report context rather than a direct edge."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'disclosed campaign of' surfaced for Organization -> ThreatActor; the disclosure is mediated by the campaign/report context rather than a direct edge."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct STIX relation for 'disclosed campaign of' surfaced for Identity -> Threat Actor; the disclosure is mediated by the campaign/report context rather than a direct edge."
+            }
+        },
+        {
+            "subject": "Threat Analysis Group (TAG)",
+            "relation": "tracked",
+            "object": "Threat Actor",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'tracked' surfaced for Organization -> Person."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'tracked' surfaced for Organization -> ThreatActor."
+            },
+            "relation_stix_type": {
+                "name": "investigates",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#investigates",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for TAG tracking or investigating the threat actor."
+            }
+        },
+        {
+            "subject": "Threat Analysis Group (TAG)",
+            "relation": "became aware of",
+            "object": "a new campaign",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'became aware of' surfaced for Organization -> Event."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'became aware of' surfaced for Organization -> Campaign."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct STIX relation for 'became aware of' surfaced for Identity -> Campaign."
+            }
+        },
+        {
+            "subject": "a new campaign",
+            "relation": "is likely conducted by",
+            "object": "Threat Actor",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'is likely conducted by' surfaced for Event -> Person."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt relation for 'is likely conducted by' surfaced for Campaign -> ThreatActor."
+            },
+            "relation_stix_type": {
+                "name": "attributed-to",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#attributed-to",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for attributing a campaign to a threat actor."
+            }
+        },
+        {
+            "subject": "a new campaign",
+            "relation": "was publicly disclosed in",
+            "object": "January 2021",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO represents disclosure/publication timing with dateTime-style properties rather than a direct object relation to a Time node here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation for 'was publicly disclosed in' surfaced between Campaign and a standalone Time node."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models disclosure/publication timing with dateTime properties rather than a direct object relation to a Time node here."
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "Threat Actor",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "North Korea",
+            "entity_type": "Location",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Location",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/location/Location",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Country",
+                "uri": "http://idea.rpi.edu/malont#Country",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Location",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Location",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "0-day exploits",
+            "entity_type": "Exploit Target",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Closest UCO class surfaced for 0-day exploits as repeatable attack/action patterns."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Closest MALOnt class surfaced for 0-day exploits as attack patterns."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Closest STIX class surfaced for 0-day exploits as attack patterns."
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "security researchers",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the collective 'security researchers' mention to Organization as the closest group-level identity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the collective 'security researchers' mention to Organization as the closest MALOnt group-level identity class."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "vulnerability research and development",
+            "entity_type": "Information",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "This phrase denotes a research activity area, not a forensic analysis instance. No suitable UCO class surfaced for a vulnerability R&D topic."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "This phrase denotes an activity area, not a vulnerability instance."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "This phrase denotes an activity area, not a STIX Vulnerability SDO."
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "Threat Analysis Group (TAG)",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "a new campaign",
+            "entity_type": "Event",
+            "mentions": [
+                "campaign"
+            ],
+            "entity_uco_type": {
+                "name": "Event",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/core/Event",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Campaign class here; Event is the closest surfaced class for a noteworthy adversarial occurrence."
+            },
+            "entity_malont_type": {
+                "name": "Campaign",
+                "uri": "http://idea.rpi.edu/malont#Campaign",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Campaign",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Campaign",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "January 2021",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct UCO Time/Date class surfaced from the loaded ontology for a standalone temporal node like January 2021."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology models timing through dateTime properties rather than a standalone Time SDO for January 2021."
+            }
+        }
+    ],
+    "implicit_triplets": []
+}

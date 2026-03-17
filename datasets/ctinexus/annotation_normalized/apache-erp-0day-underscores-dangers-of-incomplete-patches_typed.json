@@ -1,0 +1,595 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "Unknown groups",
+            "relation": "launched probes against",
+            "object": "zero-day vulnerability CVE-2023-51467",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        },
+        {
+            "subject": "zero-day vulnerability CVE-2023-51467",
+            "relation": "affects",
+            "object": "Apache OfBiz",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO vulnerability-affects object relation surfaced here."
+            },
+            "relation_malont_type": {
+                "name": "hasVulnerability",
+                "uri": "http://idea.rpi.edu/malont#hasVulnerability",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": true,
+                "note": "Normalized to the inverse of MALOnt hasVulnerability because the object is the affected software/hardware/application."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct STIX object property surfaced for this vulnerability-affects relation."
+            }
+        },
+        {
+            "subject": "zero-day vulnerability CVE-2023-51467",
+            "relation": "allows attacker to",
+            "object": "access sensitive information",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": true,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": true,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        },
+        {
+            "subject": "zero-day vulnerability CVE-2023-51467",
+            "relation": "allows attacker to",
+            "object": "remotely execute code against applications",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": true,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": true,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        },
+        {
+            "subject": "Apache Software Foundation",
+            "relation": "released patch for",
+            "object": "CVE-2023-49070",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Normalized from confidence-based relation typing with no ontology URI (confidence=0.00)."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Normalized from confidence-based relation typing with no ontology URI (confidence=0.00)."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Normalized from confidence-based relation typing with no ontology URI (confidence=0.00)."
+            }
+        },
+        {
+            "subject": "patch for CVE-2023-49070",
+            "relation": "failed to protect against",
+            "object": "other variations of the attack",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        },
+        {
+            "subject": "zero-day vulnerability CVE-2023-51467",
+            "relation": "disclosed on",
+            "object": "Dec. 26",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        },
+        {
+            "subject": "SonicWall",
+            "relation": "analyzed",
+            "object": "zero-day vulnerability CVE-2023-51467",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "Unknown groups",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "zero-day vulnerability CVE-2023-51467",
+            "entity_type": "Vulnerability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO did not surface a dedicated vulnerability class in the loaded schema; normalization keeps this as non-match instead of forcing a software proxy."
+            },
+            "entity_malont_type": {
+                "name": "Vulnerability",
+                "uri": "http://idea.rpi.edu/malont#Vulnerability",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Vulnerability",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Vulnerability",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "Apache OfBiz",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Application",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Application",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Application",
+                "uri": "http://idea.rpi.edu/malont#Application",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.74)."
+            },
+            "entity_stix_type": {
+                "name": "Software",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Software",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "access sensitive information",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from UCO Action to ActionPattern because the phrase denotes a recurring capability/behavior pattern rather than a single action instance."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.41)."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.39)."
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "remotely execute code against applications",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from UCO Action to ActionPattern because the phrase denotes a recurring capability/behavior pattern rather than a single action instance."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.36)."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.33)."
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "Apache Software Foundation",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "CVE-2023-49070",
+            "entity_type": "Vulnerability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO did not surface a dedicated vulnerability class in the loaded schema; normalization keeps this as non-match instead of forcing a software proxy."
+            },
+            "entity_malont_type": {
+                "name": "Vulnerability_CVEID",
+                "uri": "http://idea.rpi.edu/malont#Vulnerability_CVEID",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Vulnerability",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Vulnerability",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "patch for CVE-2023-49070",
+            "entity_type": "Tool",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Action",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/Action",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.57)."
+            },
+            "entity_malont_type": {
+                "name": "Software",
+                "uri": "http://idea.rpi.edu/malont#Software",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.44)."
+            },
+            "entity_stix_type": {
+                "name": "Course Of Action",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#CourseOfAction",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 8,
+            "entity_name": "other variations of the attack",
+            "entity_type": "Malware Characteristic:Variants",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized from confidence-based typing (confidence=0.67)."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 9,
+            "entity_name": "Dec. 26",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Normalized from confidence-based typing with no ontology URI (confidence=0.00)."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Normalized from confidence-based typing with no ontology URI (confidence=0.00)."
+            }
+        },
+        {
+            "entity_id": 10,
+            "entity_name": "SonicWall",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        }
+    ],
+    "implicit_triplets": [
+        {
+            "subject": "Apache Software Foundation",
+            "relation": "disclosed",
+            "object": "zero-day vulnerability CVE-2023-51467",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Normalized from confidence-based relation typing with no ontology URI (confidence=0.00)."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Normalized from confidence-based relation typing with no ontology URI (confidence=0.00)."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Normalized from confidence-based relation typing with no ontology URI (confidence=0.00)."
+            }
+        },
+        {
+            "subject": "patch for CVE-2023-49070",
+            "relation": "failed to protect against",
+            "object": "zero-day vulnerability CVE-2023-51467",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable ontology object relation surfaced here; keeping a forced/broad match was less accurate than non-match."
+            }
+        }
+    ]
+}

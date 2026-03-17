@@ -1,0 +1,1520 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "Quantum ransomware",
+            "relation": "discovered in",
+            "object": "August 2021",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would model discovery timing as an event/date attribute rather than a direct object relation to a standalone Time node."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt object relation surfaced for discovery timing; this is better modeled as event/time metadata."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models discovery/first-seen timing with date/time properties rather than an object relation to a Time node."
+            }
+        },
+        {
+            "subject": "Quantum ransomware",
+            "relation": "linked to",
+            "object": "Quantum Locker",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No useful UCO object property surfaced for a generic malware-to-related-family linkage here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt object relation surfaced for this generic ransomware-to-related-brand linkage."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong STIX relationship surfaced for this generic malware-to-associated-family linkage; keeping it unmatched is safer than over-asserting lineage."
+            }
+        },
+        {
+            "subject": "Quantum Locker",
+            "relation": "had rebrands",
+            "object": "AstroLocker",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would normally capture rebranding as naming/identity information rather than a direct object relation."
+            },
+            "relation_malont_type": {
+                "name": "hasAlias",
+                "uri": "http://idea.rpi.edu/malont#hasAlias",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": "MALOnt exposes hasAlias between malware-family style entities, which fits the rebrand relation best."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX typically represents rebrands via alias/name properties rather than a direct object relationship between two nodes."
+            }
+        },
+        {
+            "subject": "Quantum Locker",
+            "relation": "had rebrands",
+            "object": "MountLocker",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would normally capture rebranding as naming/identity information rather than a direct object relation."
+            },
+            "relation_malont_type": {
+                "name": "hasAlias",
+                "uri": "http://idea.rpi.edu/malont#hasAlias",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": "MALOnt exposes hasAlias between malware-family style entities, which fits the rebrand relation best."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX typically represents rebrands via alias/name properties rather than a direct object relationship between two nodes."
+            }
+        },
+        {
+            "subject": "Quantum Locker",
+            "relation": "had rebrands",
+            "object": "XingLocker",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would normally capture rebranding as naming/identity information rather than a direct object relation."
+            },
+            "relation_malont_type": {
+                "name": "hasAlias",
+                "uri": "http://idea.rpi.edu/malont#hasAlias",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": "MALOnt exposes hasAlias between malware-family style entities, which fits the rebrand relation best."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX typically represents rebrands via alias/name properties rather than a direct object relationship between two nodes."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "is a splinter group from",
+            "object": "Conti",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO derivation relation surfaced for one threat actor group splintering from another."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt parent-lineage relation surfaced for a splinter group emerging from another threat actor."
+            },
+            "relation_stix_type": {
+                "name": "originates-from",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#originates-from",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Used as the closest STIX lineage relation for a splinter group emerging from Conti."
+            }
+        },
+        {
+            "subject": "Quantum ransomware operation",
+            "relation": "taken over by",
+            "object": "Conti Team Two",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO stewardship/control relation surfaced for an operation being taken over by a team."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt control/takeover relation surfaced for campaign operation handover."
+            },
+            "relation_stix_type": {
+                "name": "attributed-to",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#attributed-to",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "STIX attributed-to is the closest available relation for tying the operation/campaign to the team controlling it after takeover."
+            }
+        },
+        {
+            "subject": "Quantum ransomware operation",
+            "relation": "taken over in",
+            "object": "April 2022",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would model takeover timing as event/date information rather than an object relation to a Time node."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt object relation surfaced for takeover timing; this is better modeled as time metadata."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would model this with timestamp properties rather than a relationship to a Time node."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "employed",
+            "object": "Jormungandr",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO object relation surfaced for a threat actor employing a phishing/social-engineering method."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Jormungandr",
+            "relation": "is version of",
+            "object": "BazarCall",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO does not expose a clean version/variant relation for these attack-method style nodes here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt version/variant object relation surfaced for Jormungandr as a BazarCall variant."
+            },
+            "relation_stix_type": {
+                "name": "variant-of",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#variant-of",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": "Jormungandr is described as Quantum's version of BazarCall, which fits STIX variant-of best."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "observed employing Jormungandr in",
+            "object": "June 2022",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would model the observation time as date/event metadata rather than a direct relation to a Time node."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt object relation surfaced for observation timing; this is better modeled as time metadata."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would model the observation time with timestamp properties rather than a relationship to a Time node."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "hired people specialized in",
+            "object": "OSINT",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a clear UCO object relation between cyber entities."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a personnel specialization relation, not a strong MALOnt CTI object relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a standard STIX object relationship."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "hired people specialized in",
+            "object": "spamming",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a clear UCO object relation between cyber entities."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a personnel specialization relation, not a strong MALOnt CTI object relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a standard STIX object relationship."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "hired people specialized in",
+            "object": "design",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a clear UCO object relation between cyber entities."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a personnel specialization relation, not a strong MALOnt CTI object relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a standard STIX object relationship."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "hired people specialized in",
+            "object": "call center operations",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a clear UCO object relation between cyber entities."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a personnel specialization relation, not a strong MALOnt CTI object relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is a staffing specialization relation, not a standard STIX object relationship."
+            }
+        },
+        {
+            "subject": "BazarCall",
+            "relation": "also known as",
+            "object": "call-back phishing",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Alias naming is better represented as identity/name information than as a UCO object relation."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt alias relation surfaced for phishing-method nodes here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models alternative naming with alias/name properties rather than an object relationship between two attack-pattern nodes."
+            }
+        },
+        {
+            "subject": "BazarCall",
+            "relation": "emerged in",
+            "object": "early 2021",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would model emergence timing as date/event metadata rather than an object relation to a Time node."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt object relation surfaced for emergence timing; this is better modeled as time metadata."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would model emergence timing with timestamp properties rather than a relationship to a Time node."
+            }
+        },
+        {
+            "subject": "BazarCall",
+            "relation": "used as attack vector by",
+            "object": "Ryuk ransomware",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO object relation surfaced for an attack method being used by malware as an attack vector."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": true,
+                "note": "The ontology relation is naturally Malware -> uses -> Phishing, so the source triple is the inverse direction."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": true,
+                "note": "The ontology relation is naturally Malware -> uses -> Attack Pattern, so the source triple is the inverse direction."
+            }
+        },
+        {
+            "subject": "BazarCall",
+            "relation": "used to gain",
+            "object": "initial access into a victim's network",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This expresses an attack outcome/goal, not a clean UCO object relation between well-scoped entity nodes."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This expresses an attack objective/outcome rather than a strong MALOnt object relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This expresses an attack objective or phase; STIX does not expose a strong direct object relation for this phrasing."
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "impersonated",
+            "object": "Gobble",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO impersonation relation surfaced between a threat actor group and an impersonated organization."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt impersonation/spoofing object relation surfaced for this actor-to-brand relationship."
+            },
+            "relation_stix_type": {
+                "name": "impersonates",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#impersonates",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "impersonated",
+            "object": "Luchechko Mortgage Team",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO impersonation relation surfaced between a threat actor group and an impersonated organization."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt impersonation/spoofing object relation surfaced for this actor-to-brand relationship."
+            },
+            "relation_stix_type": {
+                "name": "impersonates",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#impersonates",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "impersonated",
+            "object": "CrowdStrike",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO impersonation relation surfaced between a threat actor group and an impersonated organization."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt impersonation/spoofing object relation surfaced for this actor-to-brand relationship."
+            },
+            "relation_stix_type": {
+                "name": "impersonates",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#impersonates",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "impersonated",
+            "object": "HelloFresh",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO impersonation relation surfaced between a threat actor group and an impersonated organization."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt impersonation/spoofing object relation surfaced for this actor-to-brand relationship."
+            },
+            "relation_stix_type": {
+                "name": "impersonates",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#impersonates",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "impersonated",
+            "object": "Oracle",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO impersonation relation surfaced between a threat actor group and an impersonated organization."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt impersonation/spoofing object relation surfaced for this actor-to-brand relationship."
+            },
+            "relation_stix_type": {
+                "name": "impersonates",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#impersonates",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Quantum",
+            "relation": "impersonated",
+            "object": "Ginyard International US Equal Opportunity Employment Commission",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No suitable UCO impersonation relation surfaced between a threat actor group and an impersonated organization."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No strong MALOnt impersonation/spoofing object relation surfaced for this actor-to-brand relationship."
+            },
+            "relation_stix_type": {
+                "name": "impersonates",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#impersonates",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "Quantum ransomware",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Malware class here; MaliciousTool is the closest malicious software abstraction for Quantum ransomware."
+            },
+            "entity_malont_type": {
+                "name": "Ransomware",
+                "uri": "http://idea.rpi.edu/malont#Ransomware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "August 2021",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO typically models dates/times as properties or facets on events and objects rather than as standalone Time nodes."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX represents this as a timestamp property such as created/first_seen rather than a standalone Time SDO."
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "Quantum Locker",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Although the text calls Quantum Locker an operation, UCO has no ransomware-family class; MaliciousTool is the closest fit for the branded ransomware artifact/family."
+            },
+            "entity_malont_type": {
+                "name": "MalwareFamily",
+                "uri": "http://idea.rpi.edu/malont#MalwareFamily",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "The text frames Quantum Locker as an operation/brand, but MALOnt MalwareFamily best captures the ransomware family-style naming and alias behavior."
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX Malware covers both malware instances and malware families/brands, which best fits Quantum Locker here."
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "AstroLocker",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Treated as a renamed ransomware family/brand; UCO offers MaliciousTool as the closest fit."
+            },
+            "entity_malont_type": {
+                "name": "MalwareFamily",
+                "uri": "http://idea.rpi.edu/malont#MalwareFamily",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Treated as a rebranded ransomware family/brand label rather than a distinct campaign."
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX Malware covers malware families and renamed variants."
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "MountLocker",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Treated as a renamed ransomware family/brand; UCO offers MaliciousTool as the closest fit."
+            },
+            "entity_malont_type": {
+                "name": "MalwareFamily",
+                "uri": "http://idea.rpi.edu/malont#MalwareFamily",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Treated as a rebranded ransomware family/brand label rather than a distinct campaign."
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX Malware covers malware families and renamed variants."
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "XingLocker",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Treated as a renamed ransomware family/brand; UCO offers MaliciousTool as the closest fit."
+            },
+            "entity_malont_type": {
+                "name": "MalwareFamily",
+                "uri": "http://idea.rpi.edu/malont#MalwareFamily",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Treated as a rebranded ransomware family/brand label rather than a distinct campaign."
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX Malware covers malware families and renamed variants."
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "Quantum",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "Conti",
+            "entity_type": "Attacker",
+            "mentions": [
+                "Conti Team Two"
+            ],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 8,
+            "entity_name": "Quantum ransomware operation",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Event",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/core/Event",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO has no direct campaign/operation class here; Event is the closest high-level abstraction for the ransomware operation as an occurrence over time."
+            },
+            "entity_malont_type": {
+                "name": "Campaign",
+                "uri": "http://idea.rpi.edu/malont#Campaign",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Campaign",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Campaign",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 9,
+            "entity_name": "April 2022",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO typically models dates/times as properties or facets on events and objects rather than as standalone Time nodes."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX represents this as a timestamp property rather than a standalone Time SDO."
+            }
+        },
+        {
+            "entity_id": 10,
+            "entity_name": "Jormungandr",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Jormungandr is described as Quantum's version of BazarCall, so UCO ActionPattern is the closest fit for a phishing/social-engineering method variant."
+            },
+            "entity_malont_type": {
+                "name": "Phishing",
+                "uri": "http://idea.rpi.edu/malont#Phishing",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Jormungandr is treated as a specific BazarCall/call-back phishing variant."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 11,
+            "entity_name": "BazarCall",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "BazarCall is described as a method/tactic, so UCO ActionPattern is the nearest class."
+            },
+            "entity_malont_type": {
+                "name": "Phishing",
+                "uri": "http://idea.rpi.edu/malont#Phishing",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 12,
+            "entity_name": "June 2022",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO typically models dates/times as properties or facets on events and objects rather than as standalone Time nodes."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX represents this as a timestamp property rather than a standalone Time SDO."
+            }
+        },
+        {
+            "entity_id": 13,
+            "entity_name": "OSINT",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "OSINT is better modeled as a qualification/capability facet in UCO than as a standalone entity class."
+            },
+            "entity_malont_type": {
+                "name": "Reconnaissance",
+                "uri": "http://idea.rpi.edu/malont#Reconnaissance",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "OSINT is a reconnaissance method/capability, so Reconnaissance is the closest MALOnt class."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "OSINT is an analyst or operational capability, not a strong standalone STIX SDO class in this context."
+            }
+        },
+        {
+            "entity_id": 14,
+            "entity_name": "spamming",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Spamming here is an operational capability/activity rather than a well-scoped standalone UCO entity class."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No sufficiently specific MALOnt class surfaced for spamming as a staffing specialization without over-committing to phishing."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Spamming here is an operational capability rather than a specific named STIX SDO."
+            }
+        },
+        {
+            "entity_id": 15,
+            "entity_name": "design",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Design is a staffing skill, not a standalone cyber entity class in UCO."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Design is treated as a staffing capability, not a CTI entity class in MALOnt."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Design is a staffing capability, not a core STIX domain object here."
+            }
+        },
+        {
+            "entity_id": 16,
+            "entity_name": "call center operations",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Call center operations are an organizational capability, not a well-scoped standalone UCO entity class in this context."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Call center operations are treated as staffing capability rather than a MALOnt CTI entity class."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "Call center operations are an operational capability, not a core STIX SDO here."
+            }
+        },
+        {
+            "entity_id": 17,
+            "entity_name": "call-back phishing",
+            "entity_type": "Malware Characteristic:Payload",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Call-back phishing is a social-engineering method, so UCO ActionPattern is the nearest class."
+            },
+            "entity_malont_type": {
+                "name": "Phishing",
+                "uri": "http://idea.rpi.edu/malont#Phishing",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 18,
+            "entity_name": "early 2021",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO typically models dates/times as properties or facets on events and objects rather than as standalone Time nodes."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX represents this as a timestamp property rather than a standalone Time SDO."
+            }
+        },
+        {
+            "entity_id": 19,
+            "entity_name": "Ryuk ransomware",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO lacks a dedicated Malware class; MaliciousTool is the closest abstraction for Ryuk ransomware."
+            },
+            "entity_malont_type": {
+                "name": "Ransomware",
+                "uri": "http://idea.rpi.edu/malont#Ransomware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 20,
+            "entity_name": "initial access into a victim's network",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "This phrase describes an attack outcome/phase rather than a standalone UCO entity class."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "This phrase describes an attack objective or phase, not a clearly named MALOnt entity class."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "This phrase describes an attack objective/phase, not a clean standalone STIX SDO."
+            }
+        },
+        {
+            "entity_id": 21,
+            "entity_name": "Gobble",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX represents organizations and brands with the Identity SDO."
+            }
+        },
+        {
+            "entity_id": 22,
+            "entity_name": "Luchechko Mortgage Team",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX represents organizations and brands with the Identity SDO."
+            }
+        },
+        {
+            "entity_id": 23,
+            "entity_name": "CrowdStrike",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX represents organizations and brands with the Identity SDO."
+            }
+        },
+        {
+            "entity_id": 24,
+            "entity_name": "HelloFresh",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX represents organizations and brands with the Identity SDO."
+            }
+        },
+        {
+            "entity_id": 25,
+            "entity_name": "Oracle",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX represents organizations and brands with the Identity SDO."
+            }
+        },
+        {
+            "entity_id": 26,
+            "entity_name": "Ginyard International US Equal Opportunity Employment Commission",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "STIX represents organizations and brands with the Identity SDO."
+            }
+        },
+        {
+            "entity_id": 27,
+            "entity_name": "Conti Team Two",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        }
+    ],
+    "implicit_triplets": [
+        {
+            "subject": "Quantum",
+            "relation": "is linked to",
+            "object": "Quantum Locker",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No useful UCO object property surfaced for this generic Quantum-to-Quantum Locker association."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The vague linkage did not justify a generic uses relation."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The vague linkage did not justify a generic uses relation."
+            }
+        }
+    ]
+}

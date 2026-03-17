@@ -1,0 +1,1267 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "came to public attention in",
+            "object": "May 2023",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for malware public-attention timing; this would be modeled with date/time attributes."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware public-attention timing; this is better represented with time/date properties."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models first/public appearance with dateTime properties such as first_seen rather than a direct object relation to a standalone Time node."
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "associated with",
+            "object": "attack on the Chilean Army",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for linking malware to a standalone incident using the generic phrase 'associated with'."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No specific MALOnt object relation surfaced for 'associated with' between malware and an attack incident."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No specific STIX relationship type surfaced for the generic 'associated with' link from malware to an incident."
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "associated with",
+            "object": "attack on Prospect Medical Holdings",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for linking malware to a standalone incident using the generic phrase 'associated with'."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No specific MALOnt object relation surfaced for 'associated with' between malware and an attack incident."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No specific STIX relationship type surfaced for the generic 'associated with' link from malware to an incident."
+            }
+        },
+        {
+            "subject": "attack on Prospect Medical Holdings",
+            "relation": "impacted",
+            "object": "hospitals and clinics across the U.S.",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for an attack event impacting victim organizations/facilities."
+            },
+            "relation_malont_type": {
+                "name": "targets",
+                "uri": "http://www.semanticweb.org/yeed3/ontologies/2020/5/untitled-ontology-15#targets",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for an attack event impacting victim organizations/facilities."
+            },
+            "relation_stix_type": {
+                "name": "compromises",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#compromises",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for an attack event materially impacting victim organizations/facilities."
+            }
+        },
+        {
+            "subject": "U.S. Department of Health and Human Services (HC3)",
+            "relation": "classified",
+            "object": "Rhysida as a substantial threat to the healthcare sector",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for an organization classifying a malware threat assessment statement."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for an organization issuing a threat classification statement."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is better modeled as analytic assessment/opinion metadata than as a direct STIX object relation."
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "gains access through",
+            "object": "phishing tactics",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for 'gains access through' surfaced for Malware -> ActionPattern."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for ransomware using phishing tactics as an access method."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for ransomware using phishing tactics as an access method."
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "uses",
+            "object": "Cobalt Strike",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for Malware -> Tool uses surfaced here."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "uses",
+            "object": "PsExec",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for Malware -> Tool uses surfaced here."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "PsExec",
+            "relation": "deploys",
+            "object": "PowerShell scripts",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for tool-to-software deployment here."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for PsExec using/deploying PowerShell scripts."
+            },
+            "relation_stix_type": {
+                "name": "delivers",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#delivers",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for PsExec deploying PowerShell scripts."
+            }
+        },
+        {
+            "subject": "PsExec",
+            "relation": "deploys",
+            "object": "Rhysida ransomware payload",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for tool-to-malware deployment here."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for PsExec using/deploying the ransomware payload."
+            },
+            "relation_stix_type": {
+                "name": "delivers",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#delivers",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for PsExec deploying the ransomware payload."
+            }
+        },
+        {
+            "subject": "PowerShell scripts",
+            "relation": "identified as",
+            "object": "Trojan.PS1.SILENTKILL.A",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for file/software identification as a malware family."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for software being identified as a malware sample/family."
+            },
+            "relation_stix_type": {
+                "name": "variant-of",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#variant-of",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for a script sample being identified as a malware variant/family."
+            }
+        },
+        {
+            "subject": "Trojan.PS1.SILENTKILL.A",
+            "relation": "terminates",
+            "object": "antivirus processes and services",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for malware terminating processes/services; this is better captured as behavior description."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware terminating processes/services."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The loaded STIX property set did not surface a direct relation for malware terminating processes/services here."
+            }
+        },
+        {
+            "subject": "Trojan.PS1.SILENTKILL.A",
+            "relation": "erases",
+            "object": "shadow copies",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for malware erasing shadow copies."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware erasing shadow copies."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The loaded STIX property set did not surface a direct deletes-style relation for malware erasing shadow copies here."
+            }
+        },
+        {
+            "subject": "Trojan.PS1.SILENTKILL.A",
+            "relation": "alters",
+            "object": "remote desktop protocol (RDP) configurations",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Configuration changes are better modeled with configuration facets/properties than a generic UCO object relation here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware altering RDP configurations."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Configuration changes are better modeled as properties/observables than a direct STIX object relation here."
+            }
+        },
+        {
+            "subject": "Trojan.PS1.SILENTKILL.A",
+            "relation": "modifies",
+            "object": "active directory (AD) password",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Credential/password modification is better captured as behavior or account properties than a generic UCO object relation here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware modifying an AD password."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Credential/password modification is better captured as behavior or account properties than a generic STIX object relation here."
+            }
+        },
+        {
+            "subject": "Threat Actor",
+            "relation": "updated",
+            "object": "the script (g.ps1)",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The relation describes an editing action over a file, and no direct UCO object property surfaced for this case."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for a threat actor updating a script file."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct STIX relationship type surfaced for a threat actor updating a script file."
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "uses",
+            "object": "4096-bit RSA key",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for Malware -> cryptographic key uses surfaced here."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "uses",
+            "object": "AES-CTR",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for Malware -> encryption algorithm uses surfaced here."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "appends",
+            "object": ".rhysida extension",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO exposes file extension as a datatype property, not an object relation to a standalone extension node."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for appending a bare file-extension string."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would typically model the extension on the File object rather than as a relationship to a standalone extension node."
+            }
+        },
+        {
+            "subject": "Rhysida ransomware",
+            "relation": "deposits",
+            "object": "ransom note named CriticalBreachDetected.pdf",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for malware depositing a file artifact."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware depositing a ransom-note file."
+            },
+            "relation_stix_type": {
+                "name": "drops",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#drops",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for ransomware dropping/depositing a ransom note file."
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "Rhysida ransomware",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Malware class here; MaliciousTool is the closest malicious software/tool abstraction for Rhysida ransomware."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "May 2023",
+            "entity_type": "Time",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No direct UCO Time/Date class surfaced from the loaded ontology for a standalone temporal node like May 2023."
+            },
+            "entity_malont_type": {
+                "name": "Time",
+                "uri": "http://idea.rpi.edu/malont#Time",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology models timing through dateTime properties rather than a standalone Time SDO for May 2023."
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "attack on the Chilean Army",
+            "entity_type": "Event",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Event",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/core/Event",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Campaign",
+                "uri": "http://idea.rpi.edu/malont#Campaign",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated incident class here; Campaign is the closest event-like class surfaced for the attack on the Chilean Army."
+            },
+            "entity_stix_type": {
+                "name": "Incident",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Incident",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "attack on Prospect Medical Holdings",
+            "entity_type": "Event",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Event",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/core/Event",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Campaign",
+                "uri": "http://idea.rpi.edu/malont#Campaign",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated incident class here; Campaign is the closest event-like class surfaced for the attack on Prospect Medical Holdings."
+            },
+            "entity_stix_type": {
+                "name": "Incident",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Incident",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "hospitals and clinics across the U.S.",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase denotes victim healthcare organizations/facilities rather than attacker infrastructure, so Organization is the closest UCO class."
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase denotes victim healthcare organizations/facilities rather than attacker-managed infrastructure, so Organization is the closest MALOnt class."
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase denotes victim organizations/facilities rather than attacker infrastructure, so Identity is the closest STIX class."
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "U.S. Department of Health and Human Services (HC3)",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "Rhysida as a substantial threat to the healthcare sector",
+            "entity_type": "Information",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Analysis",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/analysis/Analysis",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase is an analytic judgment/classification rather than a concrete cyber object; Analysis is the closest UCO class."
+            },
+            "entity_malont_type": {
+                "name": "Report",
+                "uri": "http://idea.rpi.edu/malont#Report",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase is an assessment statement rather than a concrete CTI entity; Report is the closest MALOnt class surfaced."
+            },
+            "entity_stix_type": {
+                "name": "Opinion",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Opinion",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase is an assessment statement, so Opinion is the closest STIX SDO."
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "phishing tactics",
+            "entity_type": "Malware Characteristic:Behavior",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Phishing tactics are best represented as an action pattern in UCO."
+            },
+            "entity_malont_type": {
+                "name": "Phishing",
+                "uri": "http://idea.rpi.edu/malont#Phishing",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 8,
+            "entity_name": "Cobalt Strike",
+            "entity_type": "Tool",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Tool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/Tool",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Software",
+                "uri": "http://idea.rpi.edu/malont#Software",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated Tool SDO here; Software is the closest class surfaced for Cobalt Strike."
+            },
+            "entity_stix_type": {
+                "name": "Tool",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Tool",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 9,
+            "entity_name": "PsExec",
+            "entity_type": "Tool",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Tool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/Tool",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Software",
+                "uri": "http://idea.rpi.edu/malont#Software",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated Tool SDO here; Software is the closest class surfaced for PsExec."
+            },
+            "entity_stix_type": {
+                "name": "Tool",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Tool",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 10,
+            "entity_name": "PowerShell scripts",
+            "entity_type": "Tool",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Software",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Software",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Software",
+                "uri": "http://idea.rpi.edu/malont#Software",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Software",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Software",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 11,
+            "entity_name": "Rhysida ransomware payload",
+            "entity_type": "Malware Characteristic:Payload",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "The payload here refers to malicious software delivered for execution, so MaliciousTool is the closest UCO class."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "The payload here refers to malicious software delivered for execution, so Malware is the closest MALOnt class."
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "The payload here refers to malicious software delivered for execution, so Malware is the closest STIX class."
+            }
+        },
+        {
+            "entity_id": 12,
+            "entity_name": "Trojan.PS1.SILENTKILL.A",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated Malware class here; MaliciousTool is the closest malicious software/tool abstraction for Trojan.PS1.SILENTKILL.A."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 13,
+            "entity_name": "antivirus processes and services",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Process",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Process",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase mixes running processes and services; Process is the closest UCO operational abstraction."
+            },
+            "entity_malont_type": {
+                "name": "Software",
+                "uri": "http://idea.rpi.edu/malont#Software",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated process/service class here; Software is the closest class surfaced."
+            },
+            "entity_stix_type": {
+                "name": "Process",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Process",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "This phrase mixes running processes and services; Process is the closest STIX observable abstraction."
+            }
+        },
+        {
+            "entity_id": 14,
+            "entity_name": "shadow copies",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Volume",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Volume",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Closest UCO class surfaced for shadow copies was storage Volume rather than a dedicated VSS snapshot class."
+            },
+            "entity_malont_type": {
+                "name": "File",
+                "uri": "http://idea.rpi.edu/malont#File",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt did not surface a dedicated shadow-copy class; File is the closest storage-artifact match available here."
+            },
+            "entity_stix_type": {
+                "name": "File",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#File",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX did not surface a dedicated shadow-copy class; File is the closest observable artifact match available here."
+            }
+        },
+        {
+            "entity_id": 15,
+            "entity_name": "remote desktop protocol (RDP) configurations",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Configuration",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/configuration/Configuration",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Protocol",
+                "uri": "http://idea.rpi.edu/malont#Protocol",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "RDP configurations are closest to protocol-level configuration material in MALOnt, which does not expose a dedicated configuration class here."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology does not expose a clean standalone object for protocol configuration settings like RDP configurations in this context."
+            }
+        },
+        {
+            "entity_id": 16,
+            "entity_name": "active directory (AD) password",
+            "entity_type": "Credential",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Credential",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Credential",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No sufficiently specific MALOnt class surfaced for a standalone password/credential artifact like an Active Directory password."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "A password is not the same thing as a STIX User Account object."
+            }
+        },
+        {
+            "entity_id": 17,
+            "entity_name": "Threat Actor",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 18,
+            "entity_name": "the script (g.ps1)",
+            "entity_type": "Indicator:File",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "File",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "File",
+                "uri": "http://idea.rpi.edu/malont#File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "File",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 19,
+            "entity_name": "4096-bit RSA key",
+            "entity_type": "Credential",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded UCO ontology does not expose a strong standalone class for cryptographic key material like a 4096-bit RSA key in this context."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No specific MALOnt class surfaced for standalone cryptographic key material like a 4096-bit RSA key."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "The loaded STIX ontology models encryption details mostly through properties/enums rather than a standalone object for a 4096-bit RSA key."
+            }
+        },
+        {
+            "entity_id": 20,
+            "entity_name": "AES-CTR",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "AES-CTR is an encryption algorithm/mode better modeled as an algorithm attribute than a standalone UCO entity here."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "No specific MALOnt class surfaced for AES-CTR as a standalone algorithm entity."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "STIX EncryptionAlgorithmEnum is an enumeration value class, not a suitable entity class match here."
+            }
+        },
+        {
+            "entity_id": 21,
+            "entity_name": ".rhysida extension",
+            "entity_type": "Malware Characteristic:Feature",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "A file extension string is better modeled with the datatype property extension than as a standalone UCO entity."
+            },
+            "entity_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "MALOnt did not surface a standalone class for a bare file-extension string like .rhysida."
+            },
+            "entity_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "A file extension string is better modeled as a file property than as a standalone STIX object."
+            }
+        },
+        {
+            "entity_id": 22,
+            "entity_name": "ransom note named CriticalBreachDetected.pdf",
+            "entity_type": "Indicator:File",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "File",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "File",
+                "uri": "http://idea.rpi.edu/malont#File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "File",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#File",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        }
+    ],
+    "implicit_triplets": [
+        {
+            "subject": "U.S. Department of Health and Human Services (HC3)",
+            "relation": "classified as substantial threat",
+            "object": "Rhysida ransomware",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for an organization assessing malware as a substantial threat."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for an organization issuing a substantial-threat assessment on malware."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "This is better modeled as analytic assessment/opinion metadata than as a direct STIX object relation."
+            }
+        },
+        {
+            "subject": "Threat Actor",
+            "relation": "deploys",
+            "object": "Rhysida ransomware",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for a threat actor deploying malware."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest MALOnt relation for a threat actor deploying/using malware."
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Chosen as the closest STIX relation for a threat actor deploying/using malware."
+            }
+        }
+    ]
+}

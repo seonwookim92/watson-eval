@@ -475,6 +475,140 @@ def triplet_prompt(
     ).strip()
 
 
+def span_normalization_prompt(
+    sentence: str,
+    subject: str,
+    predicate: str,
+    obj: str,
+    role: str,
+    span: str,
+) -> str:
+    return textwrap.dedent(
+        f"""
+        You are normalizing entity spans in CTI knowledge-graph triplets.
+        Your job is NOT to invent new facts. Your job is only to decide whether the target span
+        should remain as one entity node or be reduced to a cleaner head entity with attached qualifiers.
+
+        Target triplet:
+        - subject: {subject}
+        - predicate: {predicate}
+        - object: {obj}
+
+        Target role: {role}
+        Target span: {span}
+        Source sentence: {sentence}
+
+        Allowed decisions:
+        1. "keep": keep the span exactly as-is
+        2. "rewrite_head": keep one entity node but rewrite it to a cleaner head span
+        3. "split": produce one cleaner canonical entity span plus zero or more attached qualifiers
+
+        Important rules:
+        - If the span is a fixed name, official name, malware family, organization/team name, IoC, CVE, or product/version string, prefer "keep".
+        - If the span contains relation-bearing tails such as "in Y", "for Y", "by Y", "against Y", "from Y", "with Y", "such as Y", or "including Y",
+          you may choose "rewrite_head" or "split".
+        - If you choose "split", relation_hint must describe the relation FROM the canonical span TO the qualifier value.
+        - Use only words grounded in the source sentence.
+        - If unsure, choose "keep".
+        - Do not output more than 3 qualifiers.
+
+        Return JSON only:
+        {{
+          "decision": "keep" | "rewrite_head" | "split",
+          "canonical_span": "<string>",
+          "qualifiers": [
+            {{
+              "relation_hint": "<short relation from canonical span to qualifier>",
+              "value": "<qualifier span from the sentence>"
+            }}
+          ],
+          "confidence": <0.0-1.0>,
+          "reason": "<brief explanation>"
+        }}
+        """
+    ).strip()
+
+
+def qualifier_node_worthiness_prompt(
+    sentence: str,
+    subject: str,
+    predicate: str,
+    obj: str,
+    canonical_span: str,
+    role: str,
+    relation_hint: str,
+    qualifier_value: str,
+    entity_memory: str = "",
+) -> str:
+    memory_block = entity_memory or "(none)"
+    return textwrap.dedent(
+        f"""
+        You are judging whether a qualifier extracted from a CTI sentence should be promoted to an independent graph node.
+        Decide whether the qualifier is node-worthy for a cybersecurity knowledge graph.
+
+        Return JSON only:
+        {{
+          "is_node_worthy": <true/false>,
+          "category": "entity|attribute|status|role_label|noise",
+          "suggested_handling": "promote_node|keep_as_qualifier|attach_as_attribute|drop",
+          "confidence": <0.0-1.0>,
+          "reason": "<brief explanation>"
+        }}
+
+        Decision guidelines:
+        - "entity": independent real-world or technical thing that can stand as a graph node
+        - "attribute": descriptive property/value that should usually stay attached to another node
+        - "status": state/condition/boolean-like qualifier, not an independent node
+        - "role_label": generic role/category phrase, not a named entity by itself
+        - "noise": malformed fragment or overly generic term with low graph value
+        - If unsure, do NOT promote to a node.
+        - Use only the given sentence and triplet context. Do not invent facts.
+
+        In-context examples:
+        Example 1:
+        - Canonical span: 0-day exploit chain
+        - Relation hint: targets
+        - Qualifier value: iPhones
+        Output:
+        {{"is_node_worthy": true, "category": "entity", "suggested_handling": "promote_node", "confidence": 0.95, "reason": "iPhones is an independent technical target entity."}}
+
+        Example 2:
+        - Canonical span: 0-day exploit chain
+        - Relation hint: status
+        - Qualifier value: in-the-wild
+        Output:
+        {{"is_node_worthy": false, "category": "status", "suggested_handling": "keep_as_qualifier", "confidence": 0.97, "reason": "in-the-wild is a status, not an independent entity node."}}
+
+        Example 3:
+        - Canonical span: Intellexa
+        - Relation hint: is_a
+        - Qualifier value: commercial surveillance vendor
+        Output:
+        {{"is_node_worthy": false, "category": "role_label", "suggested_handling": "keep_as_qualifier", "confidence": 0.92, "reason": "commercial surveillance vendor is a generic role label, not a named entity."}}
+
+        Example 4:
+        - Canonical span: Predator spyware
+        - Relation hint: installs_on
+        - Qualifier value: device
+        Output:
+        {{"is_node_worthy": false, "category": "noise", "suggested_handling": "drop", "confidence": 0.90, "reason": "device is too generic to add as a useful node here."}}
+
+        Source sentence: {sentence}
+        Original triplet:
+        - subject: {subject}
+        - predicate: {predicate}
+        - object: {obj}
+
+        Canonical span: {canonical_span}
+        Role: {role}
+        Qualifier relation hint: {relation_hint}
+        Qualifier value: {qualifier_value}
+        Relevant entity memory:
+        {memory_block}
+        """
+    ).strip()
+
+
 def ioc_prompt(candidate: str, context: str, detected_type: str = "") -> str:
     return textwrap.dedent(
         f"""

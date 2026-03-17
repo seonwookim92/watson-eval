@@ -1,0 +1,764 @@
+{
+    "explicit_triplets": [
+        {
+            "subject": "LeftoverLocals",
+            "relation": "affects",
+            "object": "graphics processing units",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO vulnerability-affects object relation surfaced here."
+            },
+            "relation_malont_type": {
+                "name": "hasVulnerability",
+                "uri": "http://idea.rpi.edu/malont#hasVulnerability",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": true,
+                "note": "Normalized to the inverse of MALOnt hasVulnerability because the object is the affected software/hardware/application."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct STIX object property surfaced for this vulnerability-affects relation."
+            }
+        },
+        {
+            "subject": "graphics processing units",
+            "relation": "from",
+            "object": "AMD",
+            "relation_uco_type": {
+                "name": "manufacturer",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/manufacturer",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Mapped 'from' to manufacturer as the closest UCO device-to-organization relation."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation for device manufacturer/vendor surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The loaded STIX ontology exposes vendor primarily as a literal property rather than a direct object relation to an organization here."
+            }
+        },
+        {
+            "subject": "graphics processing units",
+            "relation": "from",
+            "object": "Apple",
+            "relation_uco_type": {
+                "name": "manufacturer",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/manufacturer",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Mapped 'from' to manufacturer as the closest UCO device-to-organization relation."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation for device manufacturer/vendor surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The loaded STIX ontology exposes vendor primarily as a literal property rather than a direct object relation to an organization here."
+            }
+        },
+        {
+            "subject": "graphics processing units",
+            "relation": "from",
+            "object": "Qualcomm",
+            "relation_uco_type": {
+                "name": "manufacturer",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/manufacturer",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Mapped 'from' to manufacturer as the closest UCO device-to-organization relation."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation for device manufacturer/vendor surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The loaded STIX ontology exposes vendor primarily as a literal property rather than a direct object relation to an organization here."
+            }
+        },
+        {
+            "subject": "graphics processing units",
+            "relation": "from",
+            "object": "Imagination Technologies",
+            "relation_uco_type": {
+                "name": "manufacturer",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/manufacturer",
+                "matched": true,
+                "match_quality": "approximate",
+                "is_inverse": false,
+                "note": "Mapped 'from' to manufacturer as the closest UCO device-to-organization relation."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation for device manufacturer/vendor surfaced here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The loaded STIX ontology exposes vendor primarily as a literal property rather than a direct object relation to an organization here."
+            }
+        },
+        {
+            "subject": "LeftoverLocals",
+            "relation": "is tracked as",
+            "object": "CVE-2023-4969",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "UCO would more naturally model the CVE as an identifier or external reference rather than a direct object relation between two standalone nodes here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for linking a vulnerability mention to its CVE identifier as a standalone node."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX typically models CVE linkage through vulnerability naming/external references rather than a direct object relation between two standalone vulnerability nodes here."
+            }
+        },
+        {
+            "subject": "CVE-2023-4969",
+            "relation": "enables",
+            "object": "data recovery from vulnerable GPUs",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "The loaded UCO ontology would more naturally express this as capability/effect text or subordinate actions rather than a direct object relation to a standalone capability node."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for linking a vulnerability to a standalone capability/effect node here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX models capability primarily via descriptive properties rather than a direct object relation to a standalone capability node here."
+            }
+        },
+        {
+            "subject": "LeftoverLocals",
+            "relation": "lets attackers launch",
+            "object": "a listener",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for a vulnerability enabling attackers to launch a malicious program."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for a vulnerability enabling attacker deployment of malware."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX can describe exploit/use relationships, but no direct object relation surfaced here for a vulnerability enabling malware launch."
+            }
+        },
+        {
+            "subject": "a listener",
+            "relation": "reads from",
+            "object": "uninitialized local memory",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for malware reading from a standalone Memory node here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware reading from a standalone memory resource here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would more naturally capture this as malware behavior/analysis detail rather than a direct relation to a memory node."
+            }
+        },
+        {
+            "subject": "a listener",
+            "relation": "dumps data into",
+            "object": "global memory",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for a malicious program depositing recovered data into a standalone Memory node here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware dumping data into a standalone memory resource here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "Writing data into memory is not naturally modeled as a STIX drops relation."
+            }
+        },
+        {
+            "subject": "attacker",
+            "relation": "uses",
+            "object": "a listener",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation for Person -> MaliciousTool surfaced here."
+            },
+            "relation_malont_type": {
+                "name": "uses",
+                "uri": "http://idea.rpi.edu/malont#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            },
+            "relation_stix_type": {
+                "name": "uses",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#uses",
+                "matched": true,
+                "match_quality": "exact",
+                "is_inverse": false,
+                "note": ""
+            }
+        },
+        {
+            "subject": "attacker",
+            "relation": "reads values left by",
+            "object": "the writer",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO relation surfaced for an attacker reading values left behind by another malicious program."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for this attacker-to-program residual-data interaction."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would more naturally capture this as narrative behavior rather than a direct relation between a threat actor and another program here."
+            }
+        },
+        {
+            "subject": "the writer",
+            "relation": "stores values to",
+            "object": "local memory",
+            "relation_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct UCO object relation surfaced for malware writing values to a standalone Memory node here."
+            },
+            "relation_malont_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "No direct MALOnt object relation surfaced for malware writing to a standalone memory resource here."
+            },
+            "relation_stix_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "is_inverse": false,
+                "note": "STIX would more naturally capture this as malware behavior/analysis detail rather than a direct relation to a memory node."
+            }
+        }
+    ],
+    "entities": [
+        {
+            "entity_id": 0,
+            "entity_name": "LeftoverLocals",
+            "entity_type": "Vulnerability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO did not surface a dedicated vulnerability class in the loaded schema; normalization keeps this as non-match instead of forcing a software proxy."
+            },
+            "entity_malont_type": {
+                "name": "Vulnerability",
+                "uri": "http://idea.rpi.edu/malont#Vulnerability",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Vulnerability",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Vulnerability",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 1,
+            "entity_name": "graphics processing units",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Device",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Device",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped GPUs to Device as the closest hardware-oriented observable class; the loaded UCO ontology does not expose a dedicated GPU class."
+            },
+            "entity_malont_type": {
+                "name": "Hardware",
+                "uri": "http://idea.rpi.edu/malont#Hardware",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped GPUs to Hardware as the closest MALOnt class for a physical compute component."
+            },
+            "entity_stix_type": {
+                "name": "Infrastructure",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Infrastructure",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX does not expose a dedicated GPU/hardware object here; Infrastructure is the closest resource-level class."
+            }
+        },
+        {
+            "entity_id": 2,
+            "entity_name": "AMD",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 3,
+            "entity_name": "Apple",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 4,
+            "entity_name": "Qualcomm",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 5,
+            "entity_name": "Imagination Technologies",
+            "entity_type": "Organization",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Organization",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/identity/Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Organization",
+                "uri": "http://idea.rpi.edu/malont#Organization",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Identity",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Identity",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 6,
+            "entity_name": "CVE-2023-4969",
+            "entity_type": "Vulnerability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "",
+                "uri": "",
+                "matched": false,
+                "match_quality": "none",
+                "note": "UCO did not surface a dedicated vulnerability class in the loaded schema; normalization keeps this as non-match instead of forcing a software proxy."
+            },
+            "entity_malont_type": {
+                "name": "Vulnerability",
+                "uri": "http://idea.rpi.edu/malont#Vulnerability",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Vulnerability",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Vulnerability",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 7,
+            "entity_name": "data recovery from vulnerable GPUs",
+            "entity_type": "Malware Characteristic:Capability",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "ActionPattern",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/action/ActionPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the data-recovery capability to ActionPattern as the closest UCO class for a repeatable exploit behavior/effect."
+            },
+            "entity_malont_type": {
+                "name": "AttackPattern",
+                "uri": "http://idea.rpi.edu/malont#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the capability/effect to AttackPattern as the closest MALOnt behavior-oriented class."
+            },
+            "entity_stix_type": {
+                "name": "Attack Pattern",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#AttackPattern",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Mapped the capability/effect to Attack Pattern as the closest STIX class for a repeatable exploit behavior."
+            }
+        },
+        {
+            "entity_id": 8,
+            "entity_name": "a listener",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated malware class here; MaliciousTool is the closest malicious software/tool abstraction for the listener kernel."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 9,
+            "entity_name": "local memory",
+            "entity_type": "Infrastructure",
+            "mentions": [
+                "uninitialized local memory"
+            ],
+            "entity_uco_type": {
+                "name": "Memory",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Memory",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Hardware",
+                "uri": "http://idea.rpi.edu/malont#Hardware",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated memory class here; Hardware is the closest physical-compute-resource match."
+            },
+            "entity_stix_type": {
+                "name": "Infrastructure",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Infrastructure",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX does not expose a dedicated memory object here; Infrastructure is the closest resource-level class."
+            }
+        },
+        {
+            "entity_id": 11,
+            "entity_name": "attacker",
+            "entity_type": "Attacker",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousRole",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/role/MaliciousRole",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "Normalized attacker entities to UCO MaliciousRole for consistent attacker-role semantics."
+            },
+            "entity_malont_type": {
+                "name": "ThreatActor",
+                "uri": "http://idea.rpi.edu/malont#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical MALOnt ThreatActor label."
+            },
+            "entity_stix_type": {
+                "name": "Threat Actor",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#ThreatActor",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Normalized attacker entities to the canonical STIX Threat Actor label."
+            }
+        },
+        {
+            "entity_id": 12,
+            "entity_name": "the writer",
+            "entity_type": "Malware",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "MaliciousTool",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/tool/MaliciousTool",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "UCO does not expose a dedicated malware class here; MaliciousTool is the closest malicious software/tool abstraction for the writer program."
+            },
+            "entity_malont_type": {
+                "name": "Malware",
+                "uri": "http://idea.rpi.edu/malont#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_stix_type": {
+                "name": "Malware",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Malware",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            }
+        },
+        {
+            "entity_id": 10,
+            "entity_name": "global memory",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Memory",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Memory",
+                "matched": true,
+                "match_quality": "exact",
+                "note": ""
+            },
+            "entity_malont_type": {
+                "name": "Hardware",
+                "uri": "http://idea.rpi.edu/malont#Hardware",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated memory class here; Hardware is the closest physical-compute-resource match."
+            },
+            "entity_stix_type": {
+                "name": "Infrastructure",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Infrastructure",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX does not expose a dedicated memory object here; Infrastructure is the closest resource-level class."
+            }
+        },
+        {
+            "entity_id": 13,
+            "entity_name": "uninitialized local memory",
+            "entity_type": "Infrastructure",
+            "mentions": [],
+            "entity_uco_type": {
+                "name": "Memory",
+                "uri": "https://ontology.unifiedcyberontology.org/uco/observable/Memory",
+                "matched": true,
+                "match_quality": "exact",
+                "note": "Added during normalization because an explicit triplet refers to this more specific memory region."
+            },
+            "entity_malont_type": {
+                "name": "Hardware",
+                "uri": "http://idea.rpi.edu/malont#Hardware",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "MALOnt does not expose a dedicated memory class here; Hardware is the closest physical-compute-resource match. Added during normalization because an explicit triplet refers to this more specific memory region."
+            },
+            "entity_stix_type": {
+                "name": "Infrastructure",
+                "uri": "http://docs.oasis-open.org/cti/ns/stix#Infrastructure",
+                "matched": true,
+                "match_quality": "approximate",
+                "note": "STIX does not expose a dedicated memory object here; Infrastructure is the closest resource-level class. Added during normalization because an explicit triplet refers to this more specific memory region."
+            }
+        }
+    ],
+    "implicit_triplets": []
+}
