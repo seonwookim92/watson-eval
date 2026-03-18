@@ -216,22 +216,27 @@ setup_ladder_re() {
     info "ladder_re ready  →  source baselines/ladder/relation_extraction/.venv_ladder_re/bin/activate"
 }
 
-# ─── evaluate (shared, in watson venv) ────────────────────────────────────────
+# ─── evaluate (dedicated venv at root) ────────────────────────────────────────
 setup_evaluate() {
-    sep "evaluate.py dependencies"
-    local VENV="$ROOT/watson/.venv"
-    if [[ ! -d "$VENV" ]]; then
-        warn "watson venv not found — run setup_watson first"
-        return 0
+    sep "evaluate scripts (evaluate_entity.py / evaluate_triple.py)"
+    local VENV="$ROOT/.venv_evaluate"
+
+    check_python "$PYTHON"
+
+    if [[ -d "$VENV" ]]; then
+        warn "venv already exists at $VENV — skipping creation (delete to recreate)"
+    else
+        "$PYTHON" -m venv "$VENV"
+        info "Created venv: $VENV"
     fi
+
     local PIP="$VENV/bin/pip"
-    # Optional: sentence-transformers for embedding match mode
-    "$PIP" install sentence-transformers -q && info "sentence-transformers installed (embedding match mode)"
-    # Support Gemini for LLM evaluation
-    "$PIP" install langchain-google-genai -q && info "langchain-google-genai installed (Gemini evaluation mode)"
-    # Support Claude for LLM evaluation
-    "$PIP" install langchain-anthropic -q && info "langchain-anthropic installed (Claude evaluation mode)"
-    info "evaluate.py ready — uses watson/.venv"
+    "$PIP" install --upgrade pip -q
+    "$PIP" install -r "$ROOT/requirements-evaluate.txt"
+    info "Installed evaluate dependencies"
+
+    info "evaluate ready  →  source .venv_evaluate/bin/activate"
+    info "               or  .venv_evaluate/bin/python evaluate_entity.py ..."
 }
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
@@ -239,9 +244,7 @@ TARGETS=("${@:-all}")
 
 # Expand "all"
 if [[ " ${TARGETS[*]} " == *" all "* ]]; then
-    TARGETS=(watson watson-new ctinexus ttpdrill gtikg ladder_ner ladder_re)
-    # Automatically add 'evaluate' if watson is in targets
-    TARGETS+=(evaluate)
+    TARGETS=(watson watson-new ctinexus ttpdrill gtikg ladder_ner ladder_re evaluate)
 fi
 
 echo ""
@@ -254,7 +257,7 @@ echo "============================================================="
 
 for target in "${TARGETS[@]}"; do
     case "$target" in
-        watson)      setup_watson; setup_evaluate ;;
+        watson)      setup_watson ;;
         watson-new)  setup_watson_new  ;;
         ctinexus)    setup_ctinexus    ;;
         ttpdrill)    setup_ttpdrill    ;;
@@ -262,7 +265,7 @@ for target in "${TARGETS[@]}"; do
         ladder_ner)  setup_ladder_ner  ;;
         ladder_re)   setup_ladder_re   ;;
         evaluate)    setup_evaluate    ;;
-        *)           error "Unknown target: $target (choose: watson watson-new ctinexus ttpdrill gtikg ladder_ner ladder_re all)" ;;
+        *)           error "Unknown target: $target (choose: watson watson-new ctinexus ttpdrill gtikg ladder_ner ladder_re evaluate all)" ;;
     esac
 done
 
@@ -278,4 +281,8 @@ echo "     python run.py --model all --schema uco --limit 3 --dry-run"
 echo "     python run.py --model watson --schema uco --limit 3"
 echo "     python run.py --model watson-new --schema uco --limit 3"
 echo "     python run.py --model ladder_ner ladder_re --dry-run"
+echo "  4. Evaluate results:"
+echo "     source .venv_evaluate/bin/activate"
+echo "     python evaluate_entity.py --results outputs/ --ground-truth datasets/ctinexus/annotation/ --ontology uco"
+echo "     python evaluate_triple.py --results outputs/ --ground-truth datasets/ctinexus/annotation/ --ontology uco"
 echo "============================================================"

@@ -1,0 +1,19 @@
+# Dependencies for evaluate_entity.py and evaluate_triple.py
+# Setup: bash setup.sh evaluate
+# Venv: .venv_evaluate/
+
+python-dotenv
+
+# Ontology hierarchy scoring
+rdflib
+
+# Embedding matcher
+sentence-transformers
+numpy
+
+# LLM judge (provider libraries loaded lazily — install all to support any provider)
+langchain-core
+langchain-openai
+langchain-google-genai
+langchain-anthropic
+langchain-ollama
