@@ -108,7 +108,7 @@ setup_ttpdrill() {
     "$PIP" install spacy rank-bm25 tqdm pandas python-dotenv
 
     # Download spacy English model (needed for dependency parsing)
-    if "$PY" -m spacy validate 2>/dev/null | grep -q "en_core_web_sm"; then
+    if "$PY" -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then
         info "spacy en_core_web_sm already installed"
     else
         "$PY" -m spacy download en_core_web_sm
@@ -250,7 +250,7 @@ echo "============================================================="
 
 for target in "${TARGETS[@]}"; do
     case "$target" in
-        watson)      setup_watson      ;;
+        watson)      setup_watson; setup_evaluate ;;
         watson-new)  setup_watson_new  ;;
         ctinexus)    setup_ctinexus    ;;
         ttpdrill)    setup_ttpdrill    ;;
