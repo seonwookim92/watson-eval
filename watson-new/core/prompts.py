@@ -736,9 +736,10 @@ def entity_pre_classification_prompt(entity: str, context: str) -> str:
 
 
 def type_match_select_prompt(entity: str, context: str, candidates: List[Dict[str, str]]) -> str:
-    candidates_text = "\n".join(
-        f"- {c['name']} ({c['uri']})" for c in candidates
-    ) if candidates else "(no candidates found)"
+    def _fmt(c: Dict[str, str]) -> str:
+        desc = c.get("description", "").strip()
+        return f"- {c['name']} ({c['uri']})" + (f"\n    Description: {desc}" if desc else "")
+    candidates_text = "\n".join(_fmt(c) for c in candidates) if candidates else "(no candidates found)"
     return textwrap.dedent(
         f"""
         You are an ontology expert. Given the entity below, find the most accurate

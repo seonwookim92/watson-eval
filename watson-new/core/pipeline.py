@@ -2339,15 +2339,17 @@ class OntologyExtractorPipeline:
 
     @staticmethod
     def _parse_search_classes_result(text: str) -> List[Dict[str, str]]:
-        """Parse the text output of the search_classes MCP tool into [{name, uri}] list."""
+        """Parse the text output of the search_classes MCP tool into [{name, uri, description}] list."""
         candidates: List[Dict[str, str]] = []
         for block in re.split(r"\n(?=\d+\.)", text):
             name_m = re.match(r"\d+\.\s+(.+?)\s*\(Sim:", block)
             uri_m = re.search(r"URI:\s*(https?://\S+)", block)
+            desc_m = re.search(r"Description:\s*(.+?)(?:\n|$)", block)
             if name_m and uri_m:
                 candidates.append({
                     "name": name_m.group(1).strip(),
                     "uri": uri_m.group(1).strip().rstrip(")"),
+                    "description": desc_m.group(1).strip() if desc_m else "",
                 })
         return candidates
 
