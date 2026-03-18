@@ -69,6 +69,9 @@ def _aggregate(metrics_list: List[dict]) -> dict:
     result["micro_p"]  = micro["p"]
     result["micro_r"]  = micro["r"]
     result["micro_f1"] = micro["f1"]
+    result["micro_tp"] = tp
+    result["micro_fp"] = pred - tp
+    result["micro_fn"] = gold - tp
     return result
 
 
@@ -625,60 +628,89 @@ def _print_metric_report(
     human_key: str = None,
 ) -> None:
     has_human = hitl and human_key is not None and any(human_key in r for r in results)
-    W = 72
+
+    def _counts(m: dict):
+        tp = m.get("tp", 0)
+        fp = m.get("predicted", 0) - tp
+        fn = m.get("gold", 0) - tp
+        return tp, fp, fn
+
+    # ── Per-sample table ──────────────────────────────────────────────────────
+    # columns: Sample(32) | EMB TP/FP/FN/F1 | LLM TP/FP/FN/F1 [| HUM ...]
+    COL = "  TP   FP   FN     F1"
+    SEP = "  │"
+    sid_w = 32
+    W = sid_w + 2 + len(COL) + len(SEP) + len(COL) + (len(SEP) + len(COL) if has_human else 0)
 
     print("\n" + "=" * W)
     print(f"{title:^{W}}")
     print("=" * W)
 
-    # Per-sample table
-    hdr = f"  {'Sample':<44}  {'EMB-F1':>6}  {'LLM-F1':>6}"
+    sub_hdr = f"  {'':>{sid_w}}{SEP}{COL}{SEP}{COL}"
     if has_human:
-        hdr += f"  {'HUM-F1':>6}"
-    print(hdr)
+        sub_hdr += f"{SEP}{COL}"
+    tag_hdr = f"  {'Sample':<{sid_w}}{SEP}{'── EMB (≥'+str(threshold)+') ──':^{len(COL)}}{SEP}{'── LLM ──':^{len(COL)}}"
+    if has_human:
+        tag_hdr += f"{SEP}{'── Human ──':^{len(COL)}}"
+    col_hdr = f"  {'':>{sid_w}}{SEP}{'  TP':>4}{'  FP':>5}{'  FN':>5}{'    F1':>7}{SEP}{'  TP':>4}{'  FP':>5}{'  FN':>5}{'    F1':>7}"
+    if has_human:
+        col_hdr += f"{SEP}{'  TP':>4}{'  FP':>5}{'  FN':>5}{'    F1':>7}"
+    print(tag_hdr)
+    print(col_hdr)
     print("─" * W)
 
     for r in results:
-        sid  = r["id"][:42]
-        line = f"  {sid:<44}  {r[emb_key]['f1']:.4f}  {r[llm_key]['f1']:.4f}"
+        sid = r["id"][:sid_w]
+        me  = r[emb_key]
+        ml  = r[llm_key]
+        e_tp, e_fp, e_fn = _counts(me)
+        l_tp, l_fp, l_fn = _counts(ml)
+        line = (f"  {sid:<{sid_w}}{SEP}"
+                f"  {e_tp:>4}  {e_fp:>4}  {e_fn:>4}  {me['f1']:>6.4f}{SEP}"
+                f"  {l_tp:>4}  {l_fp:>4}  {l_fn:>4}  {ml['f1']:>6.4f}")
         if has_human:
-            fallback = human_key or llm_key
-            line += f"  {r.get(fallback, r[llm_key])['f1']:.4f}"
+            mh = r.get(human_key, ml)
+            h_tp, h_fp, h_fn = _counts(mh)
+            line += f"{SEP}  {h_tp:>4}  {h_fp:>4}  {h_fn:>4}  {mh['f1']:>6.4f}"
         print(line)
 
+    # ── Aggregate ─────────────────────────────────────────────────────────────
     print("─" * W)
-
     emb_agg = _aggregate([r[emb_key] for r in results])
     llm_agg = _aggregate([r[llm_key] for r in results])
 
-    def _row(label, emb, llm, human=None):
-        s = f"  {label:<44}  {emb['p']:.4f}/{emb['r']:.4f}/{emb['f1']:.4f}  {llm['p']:.4f}/{llm['r']:.4f}/{llm['f1']:.4f}"
-        if human:
-            s += f"  {human['p']:.4f}/{human['r']:.4f}/{human['f1']:.4f}"
-        print(s)
+    def _agg_row(label, ea, la, ha=None):
+        def _fmt(agg):
+            return (f"  {agg['micro_tp']:>4}  {agg['micro_fp']:>4}  {agg['micro_fn']:>4}  {agg['micro_f1']:>6.4f}")
+        row = f"  {label:<{sid_w}}{SEP}{_fmt(ea)}{SEP}{_fmt(la)}"
+        if ha:
+            row += f"{SEP}{_fmt(ha)}"
+        print(row)
+
+    def _macro_row(label, ea, la, ha=None):
+        def _fmt(agg):
+            return f"  {'':>4}  {'':>4}  {'':>4}  {agg['macro_f1']:>6.4f}"
+        row = f"  {label:<{sid_w}}{SEP}{_fmt(ea)}{SEP}{_fmt(la)}"
+        if ha:
+            row += f"{SEP}{_fmt(ha)}"
+        print(row)
 
     print()
-    hdr2 = f"  {'':44}  {'Embed P/R/F1':>18}  {'LLM P/R/F1':>18}"
-    if has_human:
-        hdr2 += f"  {'Human P/R/F1':>18}"
-    print(hdr2)
-    print(f"  {'':44}  {'(≥'+str(threshold)+')':>18}  {llm_tag[:18]:>18}")
-    print("─" * W)
-
-    emb_macro = {"p": emb_agg["macro_p"], "r": emb_agg["macro_r"], "f1": emb_agg["macro_f1"]}
-    emb_micro = {"p": emb_agg["micro_p"], "r": emb_agg["micro_r"], "f1": emb_agg["micro_f1"]}
-    llm_macro = {"p": llm_agg["macro_p"], "r": llm_agg["macro_r"], "f1": llm_agg["macro_f1"]}
-    llm_micro = {"p": llm_agg["micro_p"], "r": llm_agg["micro_r"], "f1": llm_agg["micro_f1"]}
+    print(f"  {'':>{sid_w}}{SEP}{'  TP   FP   FN  Micro-F1':^{len(COL)}}{SEP}{'  TP   FP   FN  Micro-F1':^{len(COL)}}"
+          + (f"{SEP}{'  TP   FP   FN  Micro-F1':^{len(COL)}}" if has_human else ""))
 
     if has_human:
-        human_agg  = _aggregate([r[human_key] for r in results if human_key and human_key in r])
-        hum_macro  = {"p": human_agg["macro_p"], "r": human_agg["macro_r"], "f1": human_agg["macro_f1"]}
-        hum_micro  = {"p": human_agg["micro_p"], "r": human_agg["micro_r"], "f1": human_agg["micro_f1"]}
-        _row("Macro avg", emb_macro, llm_macro, hum_macro)
-        _row("Micro avg", emb_micro, llm_micro, hum_micro)
+        human_agg = _aggregate([r[human_key] for r in results if human_key and human_key in r])
+        _agg_row("Micro total", emb_agg, llm_agg, human_agg)
+        _macro_row("Macro-F1   ", emb_agg, llm_agg, human_agg)
     else:
-        _row("Macro avg", emb_macro, llm_macro)
-        _row("Micro avg", emb_micro, llm_micro)
+        _agg_row("Micro total", emb_agg, llm_agg)
+        _macro_row("Macro-F1   ", emb_agg, llm_agg)
+
+    # P / R detail
+    print()
+    print(f"  {'':>{sid_w}}  {'EMB':>8}  P={emb_agg['micro_p']:.4f}  R={emb_agg['micro_r']:.4f}  F1={emb_agg['micro_f1']:.4f}"
+          f"   LLM  P={llm_agg['micro_p']:.4f}  R={llm_agg['micro_r']:.4f}  F1={llm_agg['micro_f1']:.4f}")
 
     print("=" * W)
 
