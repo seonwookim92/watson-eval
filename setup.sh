@@ -105,7 +105,7 @@ setup_ttpdrill() {
     local PIP="$VENV/bin/pip"
     local PY="$VENV/bin/python"
     "$PIP" install --upgrade pip -q
-    "$PIP" install spacy rank-bm25 tqdm pandas python-dotenv
+    "$PIP" install spacy rank-bm25 tqdm pandas python-dotenv nltk
 
     # Download spacy English model (needed for dependency parsing)
     if "$PY" -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then
@@ -114,6 +114,10 @@ setup_ttpdrill() {
         "$PY" -m spacy download en_core_web_sm
         info "Downloaded spacy model: en_core_web_sm"
     fi
+
+    # Download NLTK punkt tokenizer (needed for sentence splitting)
+    "$PY" -c "import nltk; nltk.download('punkt', quiet=True); nltk.download('punkt_tab', quiet=True)"
+    info "Downloaded NLTK punkt tokenizer"
 
     info "ttpdrill ready  →  source baselines/ttpdrill/.venv_ttpdrill/bin/activate"
 }

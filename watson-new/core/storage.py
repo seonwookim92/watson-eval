@@ -49,8 +49,10 @@ class ChromaVectorStore:
             return []
 
         rows: List[Dict[str, Any]] = []
-        metadatas = results.get("metadatas", [[]])[0] or []
-        distances = results.get("distances", [[]])[0] or []
+        metadatas_raw = results.get("metadatas", [[]])
+        metadatas = metadatas_raw[0] if metadatas_raw else []
+        distances_raw = results.get("distances", [[]])
+        distances = distances_raw[0] if distances_raw else []
         for meta, dist in zip(metadatas, distances):
             if meta is None:
                 continue

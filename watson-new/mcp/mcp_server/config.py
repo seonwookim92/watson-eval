@@ -1,4 +1,20 @@
 import os
+import sys
+import warnings
+from urllib.parse import urlparse
+
+
+def _validate_url(value: str, name: str) -> str:
+    """Warn if a URL has an unexpected scheme (potential misconfiguration)."""
+    if not value:
+        return value
+    parsed = urlparse(value)
+    if parsed.scheme not in ("http", "https"):
+        warnings.warn(
+            f"{name} has unexpected URL scheme '{parsed.scheme}': {value}",
+            stacklevel=2,
+        )
+    return value
 
 # Ontology mapping persona and rules
 MAPPING_GUIDELINES = """
@@ -61,15 +77,18 @@ DEFAULT_ONTOLOGY_DIR = os.environ.get("ONTOLOGY_DIR", "./ontology")
 # Embedding config for semantic search
 EMBEDDING_MODE = os.environ.get("EMBEDDING_MODE", "local").strip().lower()
 EMBEDDING_MODEL = os.environ.get("EMBEDDING_MODEL", "all-MiniLM-L6-v2")
-EMBEDDING_API_URL = os.environ.get(
+EMBEDDING_API_URL = _validate_url(
+    os.environ.get("EMBEDDING_API_URL", "http://192.168.100.2:8082/v1/embeddings").rstrip("/"),
     "EMBEDDING_API_URL",
-    "http://192.168.100.2:8082/v1/embeddings",
-).rstrip("/")
+)
 EMBEDDING_API_KEY = os.environ.get("EMBEDDING_API_KEY", "")
 EMBEDDING_TIMEOUT_SECONDS = float(os.environ.get("EMBEDDING_TIMEOUT_SECONDS", "60"))
 
 # OpenAI-compatible LLM config for recommend_property
-PROPERTY_RECOMMENDER_BASE_URL = os.environ.get("PROPERTY_RECOMMENDER_BASE_URL", "https://api.openai.com/v1").rstrip("/")
+PROPERTY_RECOMMENDER_BASE_URL = _validate_url(
+    os.environ.get("PROPERTY_RECOMMENDER_BASE_URL", "https://api.openai.com/v1").rstrip("/"),
+    "PROPERTY_RECOMMENDER_BASE_URL",
+)
 PROPERTY_RECOMMENDER_API_KEY = os.environ.get("PROPERTY_RECOMMENDER_API_KEY", "")
 PROPERTY_RECOMMENDER_MODEL = os.environ.get("PROPERTY_RECOMMENDER_MODEL", "")
 PROPERTY_RECOMMENDER_TIMEOUT_SECONDS = float(os.environ.get("PROPERTY_RECOMMENDER_TIMEOUT_SECONDS", "30"))

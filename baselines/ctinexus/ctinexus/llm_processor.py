@@ -703,7 +703,7 @@ class UrlSourceInput:
 				**completion_kwargs,
 			)
 		else:
-			response = call_litellm_completion(model=model_id, **completion_kwargs)
+			response = call_litellm_completion(model=f"openai/{model_id}", **completion_kwargs)
 
 		response_time = time.time() - start_time
 		summary_text = response.choices[0].message.content.strip() if response.choices else ""
@@ -1090,7 +1090,7 @@ class LLMCaller:
 				# OpenAI-compatible endpoint (includes vLLM). CUSTOM_BASE_URL is applied
 				# automatically by get_litellm_endpoint_overrides() inside call_litellm_completion.
 				response = call_litellm_completion(
-					model=model_id,
+					model=f"openai/{model_id}",
 					messages=[{"role": "user", "content": self.prompt[-1]["content"]}],
 					max_tokens=self.max_tokens,
 					temperature=0.7,

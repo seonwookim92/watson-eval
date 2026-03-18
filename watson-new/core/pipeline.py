@@ -400,9 +400,12 @@ class OntologyExtractorPipeline:
         try:
             import nltk
             return [s for s in nltk.sent_tokenize(text) if s.strip()]
-        except Exception:
-            parts = re.split(r"(?<=[.!?])\s+", text.strip())
-            return [p.strip() for p in parts if p.strip()]
+        except ImportError:
+            pass
+        except Exception as e:
+            self._log(logging.WARNING, "NLTK tokenization failed (%s), using regex fallback", e)
+        parts = re.split(r"(?<=[.!?])\s+", text.strip())
+        return [p.strip() for p in parts if p.strip()]
 
     def _reset_type_matching_progress(self) -> None:
         with self._progress_lock:
@@ -990,6 +993,13 @@ class OntologyExtractorPipeline:
                     self._log(logging.ERROR, "[3] Chunk %s unhandled error: %s", idx, e)
 
         self.paraphrase_files = [results[i] for i in sorted(results)]
+        if len(self.paraphrase_files) < len(self.chunk_files):
+            self._log(
+                logging.WARNING,
+                "[3] Only %s/%s chunks paraphrased successfully",
+                len(self.paraphrase_files),
+                len(self.chunk_files),
+            )
         self._log(logging.INFO, "[3] Paraphrasing completed: %s files", len(self.paraphrase_files))
 
     # ------------------------------------------------------------------
@@ -1031,6 +1041,12 @@ class OntologyExtractorPipeline:
             entities = self._normalize_entities(chunk_name, parsed)
             if entities or (isinstance(parsed, dict) and parsed.get("entities") == []):
                 return entities
+        self._log(
+            logging.WARNING,
+            "[4] Entity extraction exhausted %s retries for %s, returning empty",
+            retries,
+            chunk_name,
+        )
         return []
 
     def _extract_chunk_entities_from_triplets(self, path: Path, retries: int) -> List[Dict[str, str]]:
@@ -1871,7 +1887,10 @@ class OntologyExtractorPipeline:
                 try:
                     from iocsearcher.searcher import Searcher  # type: ignore
                     self._ioc_searcher = Searcher()
-                except Exception:
+                except ImportError:
+                    self._ioc_searcher = None
+                except Exception as e:
+                    self._log(logging.DEBUG, "[6] IOC searcher initialization failed: %s", e)
                     self._ioc_searcher = None
                 self._ioc_searcher_loaded = True
             if self._ioc_searcher is None:
@@ -1891,8 +1910,8 @@ class OntologyExtractorPipeline:
                     continue
                 seen.add(key)
                 results.append({"type": ioc_type, "value": normalized, "raw": raw_value})
-        except Exception:
-            pass
+        except Exception as e:
+            self._log(logging.WARNING, "[6] IOC searcher search failed: %s", e)
         return results
 
     # ------------------------------------------------------------------

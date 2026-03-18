@@ -12,12 +12,14 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Load from project root (two levels up from baselines/ctinexus/eval_ctinexus.py)
-ROOT_ENV = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "..", ".env"))
+_HERE = Path(__file__).parent.resolve()
+_ROOT = _HERE.parent.parent  # watson-eval/
+ROOT_ENV = str(_ROOT / ".env")
 load_dotenv(dotenv_path=ROOT_ENV, override=True)
 
 # Configuration
-DATASET_DIR = "/Users/seonwookim/Documents/Programming/Security/cyber-ontology/eval/datasets/ctinexus/annotation"
-OUTPUT_DIR = "/Users/seonwookim/Documents/Programming/Security/cyber-ontology/eval/outputs"
+DATASET_DIR = os.getenv("DATASET_DIR", str(_ROOT / "datasets" / "ctinexus" / "annotation"))
+OUTPUT_DIR  = os.getenv("OUTPUT_DIR",  str(_ROOT / "outputs"))
 BASELINE_NAME = "ctinexus"
 
 def run_evaluation(ontology="baseline", limit=None):

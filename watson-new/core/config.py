@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from pathlib import Path
 from typing import Any, Dict
 
@@ -13,8 +14,10 @@ def _load_env() -> Dict[str, str]:
         try:
             from dotenv import dotenv_values
             return {k: v for k, v in dotenv_values(env_path).items() if v is not None}
-        except Exception:
+        except ImportError:
             pass
+        except Exception as e:
+            print(f"Warning: Failed to load .env from {env_path}: {e}", file=sys.stderr)
     return {}
 
 

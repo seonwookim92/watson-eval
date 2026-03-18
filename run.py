@@ -4,17 +4,14 @@ Master extraction wrapper — run any model × schema combination.
 
 Produces outputs/ files in the standard {model}_{schema}_results.json format.
 
-Models  : watson | watson-new | ctinexus | ttpdrill | gtikg | ladder_ner | ladder_re  (or 'all')
+Models  : watson-new | ctinexus | ttpdrill | gtikg  (or 'all')
 Schemas : uco | stix | malont                    (or 'all')
 
 Schema support per model:
-  watson      → uco, stix, malont
-  watson-new  → uco, stix, malont  (OntologyExtractor backend — needs watson-new/OntologyExtractor/config.json)
+  watson-new  → uco, stix, malont
   ctinexus    → uco, stix, malont
   ttpdrill    → uco, stix, malont
   gtikg       → schema-agnostic (runs once regardless of --schema, outputs gtikg_none_results.json)
-  ladder_ner  → schema-agnostic (CyNER-based NER, outputs ladder_ner_none_results.json)
-  ladder_re   → schema-agnostic (relation extraction, outputs ladder_re_none_results.json)
 
 Usage examples:
 
@@ -27,14 +24,8 @@ Usage examples:
   # One model, one schema
   python run.py --model ctinexus --schema uco
 
-  # Watson (original) with all supported schemas, 10 samples
-  python run.py --model watson --schema all --limit 10
-
-  # Watson-new (OntologyExtractor backend) with UCO schema
+  # Watson-new with UCO schema
   python run.py --model watson-new --schema uco --limit 5
-
-  # LADDER baselines (schema-agnostic)
-  python run.py --model ladder_ner ladder_re
 
   # Multiple models, multiple schemas
   python run.py --model ctinexus ttpdrill --schema uco stix --limit 5
@@ -125,19 +116,6 @@ DATASETS = ROOT / "datasets" / "ctinexus" / "annotation"
 #   cmd     : callable(python_bin, schema, limit) → list[str]
 #
 MODELS = {
-    "watson": {
-        "dir":     ROOT / "watson",
-        "venv":    ROOT / "watson" / ".venv",
-        "schemas": ["uco", "stix", "malont"],
-        "cmd": lambda py, schema, limit, out: (
-            [py, "eval.py",
-             "--dataset",   "ctinexus",
-             "--data-path", str(DATASETS),
-             "--schema",    schema,
-             "--output",    out]
-            + (["--limit", str(limit)] if limit else [])
-        ),
-    },
     "ctinexus": {
         "dir":     ROOT / "baselines" / "ctinexus",
         "venv":    ROOT / "baselines" / "ctinexus" / ".venv",
@@ -176,6 +154,12 @@ MODELS = {
             + (["--limit", str(limit)] if limit else [])
         ),
     },
+}
+
+# ladder_ner and ladder_re are excluded from the default run until the
+# eval_ladder_re.py pipeline is reworked to process CTINexus files per-file.
+# Re-add them here when ready.
+_MODELS_DISABLED = {
     "ladder_ner": {
         "dir":     ROOT / "baselines" / "ladder" / "ner",
         "venv":    ROOT / "baselines" / "ladder" / "ner" / ".venv_ladder_ner",

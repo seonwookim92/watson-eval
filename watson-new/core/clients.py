@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import logging
 import os
+import select
 import subprocess
 import sys
 import threading
@@ -165,16 +166,24 @@ class RemoteEmbeddingClient(EmbeddingClient):
         self.timeout = timeout
         self.api_key = api_key
 
+    def _auth_headers(self) -> dict:
+        if self.api_key:
+            return {"Authorization": f"Bearer {self.api_key}"}
+        return {}
+
     def encode(self, text: str) -> List[float]:
         payload = {
             "input": text,
             "model": self.model,
             "truncate_prompt_tokens": self.truncate_prompt_tokens,
         }
-        resp = requests.post(self.endpoint, json=payload, timeout=self.timeout)
+        resp = requests.post(self.endpoint, json=payload, timeout=self.timeout, headers=self._auth_headers())
         resp.raise_for_status()
         data = resp.json()
-        vector = data.get("data", [{}])[0].get("embedding")
+        vectors_data = data.get("data", [])
+        if not isinstance(vectors_data, list) or not vectors_data:
+            raise RuntimeError(f"Embedding API returned invalid response: {data}")
+        vector = vectors_data[0].get("embedding")
         if not vector:
             raise RuntimeError("Embedding API returned empty vector")
         return vector
@@ -188,7 +197,7 @@ class RemoteEmbeddingClient(EmbeddingClient):
             "truncate_prompt_tokens": self.truncate_prompt_tokens,
         }
         try:
-            resp = requests.post(self.endpoint, json=payload, timeout=self.timeout)
+            resp = requests.post(self.endpoint, json=payload, timeout=self.timeout, headers=self._auth_headers())
             resp.raise_for_status()
             data = resp.json()
             items = data.get("data", [])
@@ -280,6 +289,7 @@ class MCPStdioClient:
         self._id = 1
         # Single subprocess → all send/receive must be serialised across threads
         self._send_lock = threading.Lock()
+        self._drain_stop = threading.Event()
 
     def __enter__(self) -> "MCPStdioClient":
         env = {**os.environ, "ONTOLOGY_DIR": self.ontology_dir}
@@ -306,11 +316,13 @@ class MCPStdioClient:
             text=False,
             cwd=str(Path(self.script_path).resolve().parent),
         )
+        self._drain_stop.clear()
         threading.Thread(target=self._drain_stderr, daemon=True).start()
         self._rpc_initialize()
         return self
 
     def __exit__(self, exc_type, exc, tb) -> None:
+        self._drain_stop.set()
         if not self.proc:
             return
         try:
@@ -319,6 +331,9 @@ class MCPStdioClient:
             pass
         try:
             self.proc.terminate()
+            self.proc.wait(timeout=5)
+        except subprocess.TimeoutExpired:
+            self.proc.kill()
         except Exception:
             pass
         self.proc = None
@@ -328,18 +343,38 @@ class MCPStdioClient:
         return self.proc is not None
 
     def _drain_stderr(self) -> None:
-        if not self.proc:
+        if not self.proc or not self.proc.stderr:
             return
-        for raw in iter(self.proc.stderr.readline, b""):
+        while not self._drain_stop.is_set():
+            try:
+                ready = select.select([self.proc.stderr], [], [], 0.1)[0]
+            except Exception:
+                break
+            if not ready:
+                continue
+            raw = self.proc.stderr.readline()
+            if not raw:
+                break
             line = raw.decode("utf-8", errors="replace").rstrip()
             if line:
                 self.logger.debug("[MCP-stderr] %s", line)
 
-    def _read_message(self) -> Dict[str, Any]:
+    def _read_message(self, timeout: Optional[float] = None) -> Dict[str, Any]:
         """Read one NDJSON message from MCP stdout (mcp library >= 1.x uses newline-delimited JSON)."""
         if not self.proc or not self.proc.stdout:
             raise RuntimeError("MCP process is not running")
+        effective_timeout = timeout if timeout is not None else self.timeout
+        deadline = time.monotonic() + effective_timeout
         while True:
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(f"MCP stdout read timed out after {effective_timeout}s")
+            try:
+                ready = select.select([self.proc.stdout], [], [], min(remaining, 1.0))[0]
+            except Exception as e:
+                raise RuntimeError(f"MCP stdout select failed: {e}") from e
+            if not ready:
+                continue
             raw = self.proc.stdout.readline()
             if not raw:
                 raise RuntimeError("MCP process closed stdout unexpectedly")
@@ -349,8 +384,14 @@ class MCPStdioClient:
             return json.loads(line)
 
     def _read_result_for(self, request_id: int) -> Dict[str, Any]:
+        deadline = time.monotonic() + self.timeout
         while True:
-            data = self._read_message()
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TimeoutError(
+                    f"MCP timed out after {self.timeout}s waiting for response to request {request_id}"
+                )
+            data = self._read_message(timeout=remaining)
             if isinstance(data, dict) and data.get("id") == request_id:
                 return data
 
