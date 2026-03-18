@@ -22,6 +22,22 @@ warn()  { echo -e "${YELLOW}[!]${NC} $*"; }
 error() { echo -e "${RED}[✗]${NC} $*"; }
 sep()   { echo -e "\n${YELLOW}── $* ──${NC}"; }
 
+# Check for Rust compiler (needed to build some transitive deps from source)
+check_rust() {
+    if ! command -v rustc &>/dev/null; then
+        warn "Rust compiler not found. Some packages (e.g. sudachipy, tokenizers) may fail"
+        warn "to build on platforms without pre-built wheels."
+        warn "Install Rust with:  curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh"
+        warn "Continuing with --prefer-binary (pre-built wheels only where available)..."
+    fi
+}
+
+# pip install wrapper: always prefer pre-built wheels to avoid source builds
+pip_install() {
+    local PIP="$1"; shift
+    "$PIP" install --prefer-binary "$@"
+}
+
 # Check Python version (>=3.10 required)
 check_python() {
     local py="${1:-$PYTHON}"
@@ -47,6 +63,7 @@ setup_watson() {
     local VENV="$DIR/.venv"
 
     check_python "$PYTHON"
+    check_rust
 
     if [[ -d "$VENV" ]]; then
         warn "venv already exists at $VENV — skipping creation (delete to recreate)"
@@ -57,7 +74,7 @@ setup_watson() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install -r "$DIR/requirements.txt"
+    pip_install "$PIP" -r "$DIR/requirements.txt"
     info "Installed watson dependencies"
 
     info "watson ready  →  source watson/.venv/bin/activate"
@@ -81,7 +98,7 @@ setup_ctinexus() {
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
     # Install the ctinexus package itself (pyproject.toml, editable)
-    "$PIP" install -e "$DIR"
+    pip_install "$PIP" -e "$DIR"
     info "Installed ctinexus and its dependencies"
 
     info "ctinexus ready  →  source baselines/ctinexus/.venv/bin/activate"
@@ -105,7 +122,7 @@ setup_ttpdrill() {
     local PIP="$VENV/bin/pip"
     local PY="$VENV/bin/python"
     "$PIP" install --upgrade pip -q
-    "$PIP" install spacy rank-bm25 tqdm pandas python-dotenv nltk beautifulsoup4
+    pip_install "$PIP" spacy rank-bm25 tqdm pandas python-dotenv nltk beautifulsoup4
 
     # Download spacy English model (needed for dependency parsing)
     if "$PY" -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then
@@ -139,7 +156,7 @@ setup_gtikg() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install openai tqdm python-dotenv litellm
+    pip_install "$PIP" openai tqdm python-dotenv litellm
 
     info "gtikg ready  →  source baselines/gtikg/.venv_gtikg/bin/activate"
 }
@@ -161,7 +178,7 @@ setup_watson_new() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install -r "$DIR/requirements.txt"
+    pip_install "$PIP" -r "$DIR/requirements.txt"
     info "Installed watson-new dependencies"
 
     info "watson-new ready  →  source watson-new/.venv/bin/activate"
@@ -184,8 +201,8 @@ setup_ladder_ner() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install -r "$DIR/requirements.txt"
-    "$PIP" install git+https://github.com/aiforsec/CyNER.git
+    pip_install "$PIP" -r "$DIR/requirements.txt"
+    pip_install "$PIP" git+https://github.com/aiforsec/CyNER.git
     info "Installed ladder NER dependencies (including CyNER)"
 
     info "ladder_ner ready  →  source baselines/ladder/ner/.venv_ladder_ner/bin/activate"
@@ -208,9 +225,9 @@ setup_ladder_re() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install -r "$DIR/requirements.txt"
+    pip_install "$PIP" -r "$DIR/requirements.txt"
     # Force GPU-enabled PyTorch (CUDA 12.1) — adjust index-url for your CUDA version
-    "$PIP" install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
+    pip_install "$PIP" torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
     info "Installed ladder RE dependencies (PyTorch GPU/CUDA 12.1)"
 
     info "ladder_re ready  →  source baselines/ladder/relation_extraction/.venv_ladder_re/bin/activate"
@@ -232,7 +249,7 @@ setup_evaluate() {
 
     local PIP="$VENV/bin/pip"
     "$PIP" install --upgrade pip -q
-    "$PIP" install -r "$ROOT/requirements-evaluate.txt"
+    pip_install "$PIP" -r "$ROOT/requirements-evaluate.txt"
     info "Installed evaluate dependencies"
 
     info "evaluate ready  →  source .venv_evaluate/bin/activate"
