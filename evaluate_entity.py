@@ -36,14 +36,121 @@ import json
 import os
 import re
 import sys
+import warnings
+from collections import deque
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from dotenv import load_dotenv
 
 ROOT = Path(__file__).parent.resolve()
 load_dotenv(ROOT / ".env", override=True)
 sys.path.insert(0, str(ROOT / "watson"))
+
+
+# ── Ontology Hierarchy (subClassOf) ───────────────────────────────────────────
+
+class OntologyHierarchy:
+    """
+    Loads OWL/TTL ontology files and computes hierarchical type-match scores.
+
+    Scoring by ancestor distance (up OR down the subClassOf chain):
+      0 levels  →  1.0  (exact)
+      1 level   →  0.6
+      2 levels  →  0.3
+      3+ levels →  0.0
+    """
+    DIST_SCORES = {0: 1.0, 1: 0.6, 2: 0.3}
+    _BLANK = re.compile(r"^N[0-9a-f]{24,}$", re.I)
+
+    def __init__(self, ontology_root: Path) -> None:
+        self._root = ontology_root
+        # normalized_local_name → set of normalized parent local names
+        self._parents: Dict[str, Dict[str, Set[str]]] = {}  # keyed by ontology
+
+    def _local(self, uri: str) -> str:
+        local = str(uri).rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+        return re.sub(r"[^a-z0-9]+", "", local.casefold())
+
+    def _load(self, ontology: str) -> Dict[str, Set[str]]:
+        if ontology in self._parents:
+            return self._parents[ontology]
+
+        import rdflib
+        from rdflib import RDFS
+        warnings.filterwarnings("ignore")
+
+        g = rdflib.Graph()
+        ont_dir = self._root / ontology
+
+        if ontology == "uco":
+            for f in ont_dir.rglob("*.ttl"):
+                try: g.parse(str(f), format="turtle")
+                except Exception: pass
+        else:
+            for f in ont_dir.rglob("*.owl"):
+                try: g.parse(str(f), format="xml")
+                except Exception: pass
+
+        parents: Dict[str, Set[str]] = {}
+        for s, o in g.subject_objects(RDFS.subClassOf):
+            s_loc = self._local(str(s))
+            o_loc = self._local(str(o))
+            if (s_loc and o_loc and s_loc != o_loc
+                    and not self._BLANK.match(s_loc)
+                    and not self._BLANK.match(o_loc)):
+                parents.setdefault(s_loc, set()).add(o_loc)
+
+        self._parents[ontology] = parents
+        return parents
+
+    def _ancestors(self, start: str, parents: Dict[str, Set[str]], max_depth: int) -> Dict[str, int]:
+        """BFS upward; returns {ancestor_norm: min_depth}."""
+        visited: Dict[str, int] = {start: 0}
+        queue: deque = deque([(start, 0)])
+        while queue:
+            node, depth = queue.popleft()
+            if depth >= max_depth:
+                continue
+            for parent in parents.get(node, set()):
+                if parent not in visited:
+                    visited[parent] = depth + 1
+                    queue.append((parent, depth + 1))
+        return visited
+
+    def score(self, pred_type: str, gold_type: str, ontology: str) -> float:
+        """Return hierarchical match score in {0.0, 0.3, 0.6, 1.0}."""
+        pred_norm = _normalize_type_label(pred_type)
+        gold_norm = _normalize_type_label(gold_type)
+        if not pred_norm or not gold_norm:
+            return 0.0
+        if pred_norm == gold_norm:
+            return 1.0
+
+        parents = self._load(ontology)
+        max_d = max(self.DIST_SCORES)  # 2
+
+        # pred → gold: gold is ancestor of pred
+        pred_anc = self._ancestors(pred_norm, parents, max_d)
+        if gold_norm in pred_anc:
+            return self.DIST_SCORES.get(pred_anc[gold_norm], 0.0)
+
+        # gold → pred: pred is ancestor of gold
+        gold_anc = self._ancestors(gold_norm, parents, max_d)
+        if pred_norm in gold_anc:
+            return self.DIST_SCORES.get(gold_anc[pred_norm], 0.0)
+
+        return 0.0
+
+
+_ONTOLOGY_HIERARCHY: Optional[OntologyHierarchy] = None
+
+
+def _get_hierarchy() -> OntologyHierarchy:
+    global _ONTOLOGY_HIERARCHY
+    if _ONTOLOGY_HIERARCHY is None:
+        _ONTOLOGY_HIERARCHY = OntologyHierarchy(ROOT / "ontology")
+    return _ONTOLOGY_HIERARCHY
 
 # ── Metric helpers ────────────────────────────────────────────────────────────
 
@@ -175,6 +282,32 @@ def _count_entity_type_stats(
     return tp, eligible
 
 
+def _count_entity_type_hier_stats(
+    pred_objs: List[dict],
+    gold_objs: List[dict],
+    pairs: List[Tuple[int, int]],
+    ontology: str,
+) -> Tuple[float, int]:
+    """
+    Returns (score_sum, eligible) using hierarchical partial scoring.
+    eligible = matched pairs where BOTH sides have a non-empty type.
+    score_sum = sum of OntologyHierarchy.score() for each eligible pair.
+    """
+    hier = _get_hierarchy()
+    score_sum = 0.0
+    eligible = 0
+    for pi, gj in pairs:
+        if 0 <= pi < len(pred_objs) and 0 <= gj < len(gold_objs):
+            pred_type = _entity_pred_type(pred_objs[pi])
+            gold_type = _entity_gold_schema_type(gold_objs[gj], ontology)
+            pred_norm = _normalize_type_label(pred_type)
+            gold_norm = _normalize_type_label(gold_type)
+            if pred_norm and gold_norm:
+                eligible += 1
+                score_sum += hier.score(pred_type, gold_type, ontology)
+    return score_sum, eligible
+
+
 def _gold_entity_type_display(obj: dict, ontology: str) -> str:
     label = _entity_gold_schema_type(obj, ontology)
     return label or "NON_MATCH"
@@ -221,6 +354,44 @@ class EmbeddingMatcher:
         used_p, used_g, matched = set(), set(), []
         for pi, gj, sc in pairs:
             if sc >= t and pi not in used_p and gj not in used_g:
+                matched.append((pi, gj, sc))
+                used_p.add(pi)
+                used_g.add(gj)
+        return len(matched), matched
+
+
+# ── Jaccard matcher ───────────────────────────────────────────────────────────
+
+class JaccardMatcher:
+    def __init__(self, threshold: float = 0.2) -> None:
+        self.threshold = threshold
+
+    @staticmethod
+    def _tokens(s: str) -> set:
+        return set(re.sub(r"[^\w]+", " ", s.lower()).split())
+
+    def similarity(self, a: str, b: str) -> float:
+        ta, tb = self._tokens(a), self._tokens(b)
+        if not ta and not tb:
+            return 1.0
+        if not ta or not tb:
+            return 0.0
+        return len(ta & tb) / len(ta | tb)
+
+    def greedy_match(
+        self, preds: List[str], golds: List[str]
+    ) -> Tuple[int, List[Tuple[int, int, float]]]:
+        """Greedy highest-score-first matching. Returns (tp, [(pred_i, gold_j, score)])."""
+        if not preds or not golds:
+            return 0, []
+        pairs = sorted(
+            [(i, j, self.similarity(preds[i], golds[j]))
+             for i in range(len(preds)) for j in range(len(golds))],
+            key=lambda x: x[2], reverse=True,
+        )
+        used_p, used_g, matched = set(), set(), []
+        for pi, gj, sc in pairs:
+            if sc >= self.threshold and pi not in used_p and gj not in used_g:
                 matched.append((pi, gj, sc))
                 used_p.add(pi)
                 used_g.add(gj)
@@ -483,135 +654,119 @@ async def hitl_match_entities(
 async def evaluate_sample(
     item: dict,
     gt:   dict,
+    jac:  JaccardMatcher,
     emb:  EmbeddingMatcher,
     llm,
     hitl: bool,
     ontology_override: str = None,
 ) -> dict:
-    ontology = _resolve_ontology(item, ontology_override)
-    # Keep full objects to access class/type info
+    ontology  = _resolve_ontology(item, ontology_override)
     pred_objs = [e for e in item.get("extracted_entities", []) if e.get("name")]
     gold_objs = [e for e in gt.get("ground_truth_entities",  []) if e.get("name")]
+    preds     = [e["name"].strip() for e in pred_objs]
+    golds     = [e["name"].strip() for e in gold_objs]
 
-    preds = [e["name"].strip() for e in pred_objs]
-    golds = [e["name"].strip() for e in gold_objs]
-
-    base = {"id": gt["id"], "ontology": ontology, "n_pred": len(preds), "n_gold": len(golds)}
+    base           = {"id": gt["id"], "ontology": ontology, "n_pred": len(preds), "n_gold": len(golds)}
     gold_type_list = [_gold_entity_type_display(g, ontology) for g in gold_objs]
+    zero           = _prf(0, len(preds), len(golds))
+    zero_type      = _prf(0.0, 0, 0)
 
     if not preds or not golds:
-        zero = _prf(0, len(preds), len(golds))
         return {
             **base,
             "gold_list": golds,
             "gold_type_list": gold_type_list,
             "missed_gold": golds,
-            "missed_gold_type": [
-                f"{golds[j]} :: {gold_type_list[j]}" for j in range(len(golds))
-            ],
-            "emb": zero,
-            "llm": zero,
-            "emb_type": zero,
-            "llm_type": zero,
+            "jaccard": zero, "emb": zero, "llm": zero,
+            "type_hier": zero_type,
         }
 
     if hitl:
         counts = await hitl_match_entities(pred_objs, gold_objs, emb, llm, gt["id"], ontology)
-        log = counts["match_log"]
-        # Identify missed golds in HITL
-        matched_g_indices = {l["gold_idx"] for l in log if l.get("matched") and "gold_idx" in l}
-        matched_g_type_indices = {
-            l["gold_idx"] for l in log
-            if l.get("matched") and l.get("type_match") and "gold_idx" in l
-        }
-        missed = [golds[j] for j in range(len(golds)) if j not in matched_g_indices]
-        missed_type = [
-            f"{golds[j]} :: {gold_type_list[j]}"
-            for j in range(len(golds))
-            if j not in matched_g_type_indices
+        log    = counts["match_log"]
+
+        # Human-matched pairs for type evaluation
+        human_pairs = [
+            (next((pi for pi, (p, g, _) in enumerate(
+                [(l.get("pred"), l.get("gold"), l.get("gold_idx")) for l in log]
+            ) if l.get("matched") and l.get("gold_idx") == gj), None), gj)
+            for gj in {l["gold_idx"] for l in log if l.get("matched") and "gold_idx" in l}
         ]
+        # Simpler: rebuild human pairs from match_log indices
+        human_llm_pairs = [(pi, l["gold_idx"])
+                           for pi, l in enumerate(log) if l.get("matched") and "gold_idx" in l]
+        type_score, type_n = _count_entity_type_hier_stats(
+            pred_objs, gold_objs, human_llm_pairs, ontology
+        )
+        matched_g = {l["gold_idx"] for l in log if l.get("matched") and "gold_idx" in l}
+        missed    = [golds[j] for j in range(len(golds)) if j not in matched_g]
 
         return {
             **base,
             "gold_list": golds,
             "gold_type_list": gold_type_list,
             "missed_gold": missed,
-            "missed_gold_type": missed_type,
-            "emb":       _prf(counts["emb_tp"],       len(preds), len(golds)),
-            "llm":       _prf(counts["llm_tp"],       len(preds), len(golds)),
-            "human":     _prf(counts["human_tp"],     len(preds), len(golds)),
-            "emb_type":  _prf(counts["emb_type_tp"],  counts["emb_type_n"],   counts["emb_type_n"]),
-            "llm_type":  _prf(counts["llm_type_tp"],  counts["llm_type_n"],   counts["llm_type_n"]),
-            "human_type": _prf(counts["human_type_tp"], counts["human_type_n"], counts["human_type_n"]),
+            "emb":     _prf(counts["emb_tp"],   len(preds), len(golds)),
+            "llm":     _prf(counts["llm_tp"],   len(preds), len(golds)),
+            "human":   _prf(counts["human_tp"], len(preds), len(golds)),
+            "type_hier": _prf(type_score, type_n, type_n),
             "match_log": log,
         }
     else:
-        matrix    = emb.score_matrix(preds, golds)
-        emb_tp, emb_matches = emb.greedy_match(matrix)
-        llm_pairs = await _llm_batch_match_entities(preds, golds, llm)
-        llm_tp    = _count_llm_tp(llm_pairs, len(preds), len(golds))
-        emb_type_tp, emb_type_n = _count_entity_type_stats(
-            pred_objs, gold_objs, [(p, g) for p, g, _ in emb_matches], ontology
-        )
-        llm_type_tp, llm_type_n = _count_entity_type_stats(pred_objs, gold_objs, llm_pairs, ontology)
+        # ── Extraction: three methods ──────────────────────────────────────────
+        jac_tp, jac_matches  = jac.greedy_match(preds, golds)
+        matrix               = emb.score_matrix(preds, golds)
+        emb_tp, emb_matches  = emb.greedy_match(matrix)
+        llm_pairs            = await _llm_batch_match_entities(preds, golds, llm)
+        llm_tp               = _count_llm_tp(llm_pairs, len(preds), len(golds))
 
-        # Build detailed match log for JSON output
-        match_log = []
+        # ── Type matching: hierarchical, based on LLM pairs ───────────────────
+        type_score, type_n = _count_entity_type_hier_stats(
+            pred_objs, gold_objs, llm_pairs, ontology
+        )
+
+        # ── Match log (per-prediction detail) ─────────────────────────────────
+        jac_matched_p = {p for p, g, s in jac_matches}
+        emb_matched_p = {p for p, g, s in emb_matches}
         llm_matched_p = {p for p, g in llm_pairs}
         llm_matched_g = {g for p, g in llm_pairs}
-        llm_type_matched_g = {
-            g for p, g in llm_pairs
-            if _type_matches(_entity_pred_type(pred_objs[p]), _entity_gold_schema_type(gold_objs[g], ontology))
-        }
-        emb_matched_p = {p for p, g, s in emb_matches}
+        hier          = _get_hierarchy()
 
+        match_log = []
         for pi, p_obj in enumerate(pred_objs):
+            jac_gj   = next((g for p, g, s in jac_matches if p == pi), None)
             emb_info = next(((g, s) for p, g, s in emb_matches if p == pi), (None, 0.0))
-            llm_info = next((g for p, g in llm_pairs if p == pi), None)
+            llm_gj   = next((g for p, g in llm_pairs if p == pi), None)
             pred_type = _entity_pred_type(p_obj)
-            emb_gold_type = _entity_gold_schema_type(gold_objs[emb_info[0]], ontology) if emb_info[0] is not None else None
-            llm_gold_type = _entity_gold_schema_type(gold_objs[llm_info], ontology) if llm_info is not None else None
-
+            llm_gold_type = _entity_gold_schema_type(gold_objs[llm_gj], ontology) if llm_gj is not None else None
             match_log.append({
-                "prediction": p_obj["name"],
-                "pred_class": pred_type,
-                "emb_match": {
-                    "is_correct": pi in emb_matched_p,
-                    "gold": golds[emb_info[0]] if emb_info[0] is not None else None,
-                    "gold_class": gold_objs[emb_info[0]].get("type") or gold_objs[emb_info[0]].get("class") if emb_info[0] is not None else None,
-                    "gold_schema_type": emb_gold_type,
-                    "type_match": emb_info[0] is not None and _type_matches(pred_type, emb_gold_type),
-                    "score": round(emb_info[1], 4)
-                },
-                "llm_judge": {
-                    "is_correct": pi in llm_matched_p,
-                    "gold": golds[llm_info] if llm_info is not None else None,
-                    "gold_class": gold_objs[llm_info].get("type") or gold_objs[llm_info].get("class") if llm_info is not None else None,
-                    "gold_schema_type": llm_gold_type,
-                    "type_match": llm_info is not None and _type_matches(pred_type, llm_gold_type),
-                }
+                "prediction":  p_obj["name"],
+                "pred_class":  pred_type,
+                "jaccard":     {"matched": pi in jac_matched_p,
+                                "gold": golds[jac_gj] if jac_gj is not None else None},
+                "emb":         {"matched": pi in emb_matched_p,
+                                "gold": golds[emb_info[0]] if emb_info[0] is not None else None,
+                                "score": round(emb_info[1], 4)},
+                "llm":         {"matched": pi in llm_matched_p,
+                                "gold": golds[llm_gj] if llm_gj is not None else None,
+                                "gold_schema_type": llm_gold_type,
+                                "type_hier_score": round(
+                                    hier.score(pred_type, llm_gold_type, ontology), 4
+                                ) if llm_gj is not None and llm_gold_type else None},
             })
 
-        # Gold-centric view: what did we miss?
-        # We'll use LLM as the primary 'truth' for the missed list if available
         missed = [golds[j] for j in range(len(golds)) if j not in llm_matched_g]
-        missed_type = [
-            f"{golds[j]} :: {gold_type_list[j]}"
-            for j in range(len(golds))
-            if j not in llm_type_matched_g
-        ]
 
         return {
             **base,
-            "gold_list": golds,
+            "gold_list":      golds,
             "gold_type_list": gold_type_list,
-            "missed_gold": missed,
-            "missed_gold_type": missed_type,
-            "emb": _prf(emb_tp, len(preds), len(golds)),
-            "llm": _prf(llm_tp, len(preds), len(golds)),
-            "emb_type": _prf(emb_type_tp, emb_type_n, emb_type_n),
-            "llm_type": _prf(llm_type_tp, llm_type_n, llm_type_n),
-            "match_log": match_log
+            "missed_gold":    missed,
+            "jaccard":   _prf(jac_tp, len(preds), len(golds)),
+            "emb":       _prf(emb_tp, len(preds), len(golds)),
+            "llm":       _prf(llm_tp, len(preds), len(golds)),
+            "type_hier": _prf(type_score, type_n, type_n),
+            "match_log": match_log,
         }
 
 
@@ -715,27 +870,141 @@ def _print_metric_report(
     print("=" * W)
 
 
-def _print_report(results: List[dict], hitl: bool, threshold: float, llm_tag: str) -> None:
-    _print_metric_report(
-        results,
-        hitl,
-        threshold,
-        llm_tag,
-        "ENTITY EXTRACTION — EVALUATION REPORT",
-        "emb",
-        "llm",
-        "human",
+def _print_type_report(results: List[dict], hitl: bool, llm_tag: str) -> None:
+    """Hierarchical type matching report (single metric, LLM-matched pairs)."""
+    has_human = hitl and any("human" in r for r in results)
+
+    def _counts(m: dict):
+        sc  = m.get("tp", 0.0)
+        eli = m.get("predicted", 0)
+        return sc, eli
+
+    sid_w = 32
+    COL   = "  Score  Elig   Acc"
+    SEP   = "  │"
+    W     = sid_w + 2 + len(COL) + (len(SEP) + len(COL) if has_human else 0)
+    TITLE = "ENTITY TYPE MATCHING — HIERARCHICAL (subClassOf: exact=1.0 / ±1=0.6 / ±2=0.3)"
+
+    print("\n" + "=" * max(W, len(TITLE)))
+    print(f"{TITLE:^{max(W, len(TITLE))}}")
+    print("=" * max(W, len(TITLE)))
+    W = max(W, len(TITLE))
+
+    tag_hdr = f"  {'Sample':<{sid_w}}{SEP}{'── LLM-matched pairs ──':^{len(COL)}}"
+    if has_human:
+        tag_hdr += f"{SEP}{'── Human ──':^{len(COL)}}"
+    col_hdr = f"  {'':>{sid_w}}{SEP}{'Score':>7}{'Elig':>6}{'Acc':>6}"
+    if has_human:
+        col_hdr += f"{SEP}{'Score':>7}{'Elig':>6}{'Acc':>6}"
+    print(tag_hdr)
+    print(col_hdr)
+    print("─" * W)
+
+    for r in results:
+        sid = r["id"][:sid_w]
+        m   = r.get("type_hier", r.get("llm_type_hier", {}))
+        sc, eli = _counts(m)
+        acc = m.get("f1", 0.0)
+        line = f"  {sid:<{sid_w}}{SEP}  {sc:>6.2f}  {eli:>4}  {acc:>5.4f}"
+        if has_human:
+            mh = r.get("type_hier", {})
+            hsc, heli = _counts(mh)
+            hacc = mh.get("f1", 0.0)
+            line += f"{SEP}  {hsc:>6.2f}  {heli:>4}  {hacc:>5.4f}"
+        print(line)
+
+    print("─" * W)
+    all_m   = [r.get("type_hier", {}) for r in results]
+    tot_sc  = sum(m.get("tp", 0.0) for m in all_m)
+    tot_eli = sum(m.get("predicted", 0) for m in all_m)
+    micro_acc = tot_sc / tot_eli if tot_eli > 0 else 0.0
+    macro_acc = sum(m.get("f1", 0.0) for m in all_m) / len(all_m) if all_m else 0.0
+
+    print()
+    print(f"  {'':>{sid_w}}{SEP}{'Score':>7}{'Elig':>6}{'Acc':>6}")
+    print(f"  {'Micro total':<{sid_w}}{SEP}  {tot_sc:>6.2f}  {tot_eli:>4}  {micro_acc:>5.4f}")
+    print(f"  {'Macro-Acc  ':<{sid_w}}{SEP}  {'':>6}  {'':>4}  {macro_acc:>5.4f}")
+    print(f"\n  Note: Score = sum of partial credits (1.0/0.6/0.3).  Acc = Score/Eligible.")
+    print(f"        LLM judge used for entity-name matching; type checked on matched pairs only.")
+    print("=" * W)
+
+
+def _print_report(
+    results: List[dict],
+    hitl: bool,
+    jac_threshold: float,
+    emb_threshold: float,
+    llm_tag: str,
+) -> None:
+    # Extraction: 3 methods
+    has_human = hitl and any("human" in r for r in results)
+    ext_keys  = ["jaccard", "emb", "llm"] + (["human"] if has_human else [])
+    ext_labels = {
+        "jaccard": f"Jaccard(≥{jac_threshold})",
+        "emb":     f"Embedding(≥{emb_threshold})",
+        "llm":     f"LLM({llm_tag})",
+        "human":   "Human",
+    }
+
+    sid_w = 28
+    COL   = "  TP   FP   FN     F1"
+    SEP   = "  │"
+    W     = sid_w + sum(len(SEP) + len(COL) for _ in ext_keys)
+    TITLE = "ENTITY EXTRACTION — EVALUATION REPORT"
+    W     = max(W, len(TITLE))
+
+    print("\n" + "=" * W)
+    print(f"{TITLE:^{W}}")
+    print("=" * W)
+
+    tag_hdr = f"  {'Sample':<{sid_w}}" + "".join(
+        f"{SEP}{ext_labels[k]:^{len(COL)}}" for k in ext_keys
     )
-    _print_metric_report(
-        results,
-        hitl,
-        threshold,
-        llm_tag,
-        "ENTITY TYPE MATCHING — EVALUATION REPORT",
-        "emb_type",
-        "llm_type",
-        "human_type",
+    col_hdr = f"  {'':>{sid_w}}" + "".join(
+        f"{SEP}{'  TP':>4}{'  FP':>5}{'  FN':>5}{'    F1':>7}" for _ in ext_keys
     )
+    print(tag_hdr)
+    print(col_hdr)
+    print("─" * W)
+
+    def _row(r, keys):
+        parts = []
+        for k in keys:
+            m = r.get(k, {})
+            tp = m.get("tp", 0)
+            fp = m.get("predicted", 0) - tp
+            fn = m.get("gold", 0) - tp
+            parts.append(f"{SEP}  {tp:>4}  {fp:>4}  {fn:>4}  {m.get('f1', 0.0):>6.4f}")
+        return "".join(parts)
+
+    for r in results:
+        sid = r["id"][:sid_w]
+        print(f"  {sid:<{sid_w}}" + _row(r, ext_keys))
+
+    print("─" * W)
+
+    aggs = {k: _aggregate([r.get(k, {}) for r in results]) for k in ext_keys}
+    print()
+    micro_hdr = f"  {'':>{sid_w}}" + "".join(
+        f"{SEP}{'  TP   FP   FN  Micro-F1':^{len(COL)}}" for _ in ext_keys
+    )
+    print(micro_hdr)
+    micro_line = f"  {'Micro total':<{sid_w}}"
+    macro_line = f"  {'Macro-F1   ':<{sid_w}}"
+    pr_line    = f"  {'P / R      ':<{sid_w}}"
+    for k in ext_keys:
+        a = aggs[k]
+        tp = a.get("micro_tp", 0); fp = a.get("micro_fp", 0); fn = a.get("micro_fn", 0)
+        micro_line += f"{SEP}  {tp:>4}  {fp:>4}  {fn:>4}  {a.get('micro_f1', 0.0):>6.4f}"
+        macro_line += f"{SEP}  {'':>4}  {'':>4}  {'':>4}  {a.get('macro_f1', 0.0):>6.4f}"
+        pr_line    += f"{SEP}  P={a.get('micro_p', 0.0):.4f}  R={a.get('micro_r', 0.0):.4f}{'':>7}"
+    print(micro_line)
+    print(macro_line)
+    print(pr_line)
+    print("=" * W)
+
+    # Type matching
+    _print_type_report(results, hitl, llm_tag)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
@@ -746,21 +1015,23 @@ async def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--results",      required=True, help="Model output JSON (list format)")
-    parser.add_argument("--ground-truth", required=True, help="GT annotation directory")
-    parser.add_argument("--threshold",    type=float, default=0.75,
+    parser.add_argument("--results",           required=True,  help="Model output JSON (list format)")
+    parser.add_argument("--ground-truth",      required=True,  help="GT annotation directory")
+    parser.add_argument("--emb-threshold",     type=float, default=0.75,
                         help="Embedding cosine threshold (default: 0.75)")
-    parser.add_argument("--ontology",     default=None, choices=sorted(SUPPORTED_ONTOLOGIES),
+    parser.add_argument("--jac-threshold",     type=float, default=0.2,
+                        help="Jaccard similarity threshold (default: 0.2)")
+    parser.add_argument("--ontology",          default=None, choices=sorted(SUPPORTED_ONTOLOGIES),
                         help="Override ontology for type matching (default: infer from results)")
-    parser.add_argument("--llm-provider", default=None,
+    parser.add_argument("--llm-provider",      default=None,
                         help="LLM judge provider: openai|gemini|claude|ollama")
-    parser.add_argument("--llm-model",    default=None, help="LLM model name")
-    parser.add_argument("--llm-base-url", default=None, help="LLM judge base URL")
-    parser.add_argument("--hitl",         action="store_true",
+    parser.add_argument("--llm-model",         default=None, help="LLM model name")
+    parser.add_argument("--llm-base-url",      default=None, help="LLM judge base URL")
+    parser.add_argument("--hitl",              action="store_true",
                         help="Human-in-the-Loop interactive review")
-    parser.add_argument("--limit",        type=int, default=None,
+    parser.add_argument("--limit",             type=int, default=None,
                         help="Max samples to evaluate (default: all)")
-    parser.add_argument("--output",       default=None,
+    parser.add_argument("--output",            default=None,
                         help="Save detailed per-sample metrics to JSON")
     args = parser.parse_args()
 
@@ -768,15 +1039,17 @@ async def main() -> None:
     llm_provider = args.llm_provider or config.EVAL_LLM_PROVIDER
     llm_model    = args.llm_model    or config.EVAL_LLM_MODEL
     llm_base_url = args.llm_base_url or config.EVAL_LLM_BASE_URL
+    llm_tag      = f"{llm_provider}/{llm_model}"
 
-    print(f"[*] Results      : {args.results}")
-    print(f"[*] Ground truth : {args.ground_truth}")
-    print(f"[*] Emb threshold: {args.threshold}")
-    print(f"[*] Type ontology: {args.ontology or 'auto'}")
-    print(f"[*] LLM judge    : {llm_provider}/{llm_model}")
+    print(f"[*] Results       : {args.results}")
+    print(f"[*] Ground truth  : {args.ground_truth}")
+    print(f"[*] Emb threshold : {args.emb_threshold}")
+    print(f"[*] Jac threshold : {args.jac_threshold}")
+    print(f"[*] Type ontology : {args.ontology or 'auto'}")
+    print(f"[*] LLM judge     : {llm_tag}")
     if llm_base_url:
-        print(f"[*] LLM endpoint : {llm_base_url}")
-    print(f"[*] HITL         : {'ON' if args.hitl else 'OFF'}")
+        print(f"[*] LLM endpoint  : {llm_base_url}")
+    print(f"[*] HITL          : {'ON' if args.hitl else 'OFF'}")
 
     with open(args.results, encoding="utf-8") as f:
         extracted = json.load(f)
@@ -785,7 +1058,8 @@ async def main() -> None:
 
     gt_map = _load_ctinexus_typed(args.ground_truth)
 
-    emb = EmbeddingMatcher(threshold=args.threshold)
+    jac = JaccardMatcher(threshold=args.jac_threshold)
+    emb = EmbeddingMatcher(threshold=args.emb_threshold)
     llm = _build_llm(llm_provider, llm_model, llm_base_url)
 
     if args.limit:
@@ -805,55 +1079,51 @@ async def main() -> None:
             continue
 
         print(f"\n[{i+1}/{len(extracted)}] {file_id}", flush=True)
-        result = await evaluate_sample(item, gt, emb, llm, args.hitl, args.ontology)
+        result = await evaluate_sample(item, gt, jac, emb, llm, args.hitl, args.ontology)
         results.append(result)
 
         if not args.hitl:
             print(
-                f"  EMB  EXT P={result['emb']['p']:.3f}  R={result['emb']['r']:.3f}  F1={result['emb']['f1']:.3f}"
-                f"  |  TYPE F1={result['emb_type']['f1']:.3f}"
-            )
-            print(
-                f"  LLM  EXT P={result['llm']['p']:.3f}  R={result['llm']['r']:.3f}  F1={result['llm']['f1']:.3f}"
-                f"  |  TYPE F1={result['llm_type']['f1']:.3f}"
+                f"  JAC F1={result['jaccard']['f1']:.3f}"
+                f"  EMB F1={result['emb']['f1']:.3f}"
+                f"  LLM F1={result['llm']['f1']:.3f}"
+                f"  │  TYPE(hier) Acc={result['type_hier']['f1']:.3f}"
+                f" [{result['type_hier']['predicted']}/{result['type_hier']['predicted']} eligible]"
             )
         else:
             h = result.get("human", result["llm"])
-            ht = result.get("human_type", result["llm_type"])
             print(f"  ── result ──")
-            print(f"  EMB   EXT P={result['emb']['p']:.3f}  R={result['emb']['r']:.3f}  F1={result['emb']['f1']:.3f}  |  TYPE F1={result['emb_type']['f1']:.3f}")
-            print(f"  LLM   EXT P={result['llm']['p']:.3f}  R={result['llm']['r']:.3f}  F1={result['llm']['f1']:.3f}  |  TYPE F1={result['llm_type']['f1']:.3f}")
-            print(f"  HUMAN EXT P={h['p']:.3f}  R={h['r']:.3f}  F1={h['f1']:.3f}  |  TYPE F1={ht['f1']:.3f}")
+            print(f"  EMB F1={result['emb']['f1']:.3f}  LLM F1={result['llm']['f1']:.3f}"
+                  f"  HUMAN F1={h['f1']:.3f}"
+                  f"  │  TYPE(hier) Acc={result['type_hier']['f1']:.3f}")
 
     if skipped:
         print(f"\n[!] Skipped {skipped} samples (no matching GT or extraction error)")
 
-    _print_report(results, args.hitl, args.threshold, f"{llm_provider}/{llm_model}")
+    _print_report(results, args.hitl, args.jac_threshold, args.emb_threshold, llm_tag)
 
     if args.output:
         out = {
-            "task":          "entity_extraction",
-            "results_file":  args.results,
-            "ground_truth":  args.ground_truth,
-            "threshold":     args.threshold,
-            "ontology":      args.ontology or "auto",
-            "llm":           f"{llm_provider}/{llm_model}",
-            "hitl":          args.hitl,
-            "num_samples":   len(results),
-            "skipped":       skipped,
-            "embedding":     _aggregate([r["emb"] for r in results]),
-            "llm_judge":     _aggregate([r["llm"] for r in results]),
-            "embedding_type": _aggregate([r["emb_type"] for r in results]),
-            "llm_judge_type": _aggregate([r["llm_type"] for r in results]),
-            "samples":       results,
+            "task":         "entity_extraction",
+            "results_file": args.results,
+            "ground_truth": args.ground_truth,
+            "emb_threshold": args.emb_threshold,
+            "jac_threshold": args.jac_threshold,
+            "ontology":     args.ontology or "auto",
+            "llm":          llm_tag,
+            "hitl":         args.hitl,
+            "num_samples":  len(results),
+            "skipped":      skipped,
+            "jaccard":      _aggregate([r["jaccard"] for r in results if "jaccard" in r]),
+            "embedding":    _aggregate([r["emb"] for r in results]),
+            "llm_judge":    _aggregate([r["llm"] for r in results]),
+            "type_hier":    _aggregate([r["type_hier"] for r in results if "type_hier" in r]),
+            "samples":      results,
         }
         if args.hitl:
             human_list = [r["human"] for r in results if "human" in r]
-            human_type_list = [r["human_type"] for r in results if "human_type" in r]
             if human_list:
                 out["human_hitl"] = _aggregate(human_list)
-            if human_type_list:
-                out["human_hitl_type"] = _aggregate(human_type_list)
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, ensure_ascii=False)
         print(f"\n[+] Detailed metrics → {args.output}")

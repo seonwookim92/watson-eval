@@ -371,6 +371,20 @@ def main():
     # Ensure outputs dir exists
     OUTPUTS.mkdir(exist_ok=True)
 
+    # Pre-run preview (같은 --list 포맷으로 실행 전 출력)
+    ts_preview = datetime.now().strftime("%y%m%d%H%M")
+    print(f"\n{'Model':<12} {'Schema':<8} {'Samples':<10} {'Output file (preview)'}")
+    print("-" * 75)
+    for m, s in jobs:
+        out    = output_filename(m, s, ts_preview).name
+        exists = "✓" if output_exists(m, s) else " "
+        lbl    = str(limit) if limit else "all"
+        print(f"[{exists}] {m:<10} {s:<8} {lbl:<10} {out}")
+    print(f"\nTotal: {len(jobs)} job(s)"
+          + (f" | limit={limit} samples each" if limit else " | all samples")
+          + (" | dry-run" if args.dry_run else "")
+          + (" | skip-existing" if args.skip_existing else ""))
+
     # Run
     print(f"\n[*] Running {len(jobs)} job(s)"
           + (f" | limit={limit}" if limit else "")

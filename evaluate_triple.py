@@ -2,38 +2,31 @@
 """
 evaluate_triple.py — Triple Extraction Evaluation
 
-Compares extracted triples against CTINexus ground truth using two methods:
-  1. Embedding similarity  (sentence-transformers, greedy cosine matching)
-  2. LLM-as-a-Judge        (one batch LLM call per sample)
+Evaluates extracted triples against CTINexus ground truth using:
 
-Matching modes (--mode):
-  soft  (default) : match by (Subject, Object) only — relation is ignored.
-                    Useful when relation phrasings differ widely across models.
-  full            : match by full (Subject, Relation, Object) triple string.
+  Extraction  (both modes always run):
+    Soft (S+O)  : Jaccard / Embedding / LLM  — subject+object only
+    Full (S+R+O): Jaccard / Embedding / LLM  — full triple string
+
+  Relation Type Matching:
+    Hierarchical (subClassOf): exact=1.0 / ±1=0.6 / ±2=0.3
+    Based on LLM-Full matched pairs.
 
 Ground truth scope (--include-implicit):
-  By default only explicit_triplets are used as gold (Step 2).
-  With --include-implicit, implicit_triplets are also added (Step 3).
-
-With --hitl: interactive human-in-the-loop review of each candidate match.
+  By default only explicit_triplets are used as gold.
+  With --include-implicit, implicit_triplets are also added.
 
 Usage:
-  # Soft matching (S+O), explicit triples only
+  # Default: both Soft+Full, explicit triples only
   python evaluate_triple.py \\
       --results  outputs/watson_uco_results.json \\
       --ground-truth datasets/ctinexus/annotation/
 
-  # Full S+R+O matching
-  python evaluate_triple.py ... --mode full
-
-  # Include implicit triples in gold (Step 3)
+  # Include implicit triples
   python evaluate_triple.py ... --include-implicit
 
-  # Human-in-the-loop
-  python evaluate_triple.py ... --hitl
-
   # Save results
-  python evaluate_triple.py ... --output outputs/eval_triple_watson_uco.json
+  python evaluate_triple.py ... --output outputs/eval_triple.json
 """
 
 import asyncio
@@ -42,8 +35,10 @@ import json
 import os
 import re
 import sys
+import warnings
+from collections import deque
 from pathlib import Path
-from typing import List, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 from dotenv import load_dotenv
 
@@ -51,29 +46,105 @@ ROOT = Path(__file__).parent.resolve()
 load_dotenv(ROOT / ".env", override=True)
 sys.path.insert(0, str(ROOT / "watson"))
 
-# ── Triple string representations ────────────────────────────────────────────
 
-def _triple_str(t: dict, mode: str) -> str:
-    s = t.get("subject",  "").strip()
-    r = t.get("relation", "").strip()
-    o = t.get("object",   "").strip()
-    if mode == "soft":
-        return f"{s} [SEP] {o}"
-    else:  # full
-        return f"{s} [SEP] {r} [SEP] {o}"
+# ── Ontology Hierarchy (subClassOf) ───────────────────────────────────────────
+
+class OntologyHierarchy:
+    """
+    Loads OWL/TTL ontology files and computes hierarchical type-match scores.
+
+    Scoring by ancestor distance (up OR down the subClassOf chain):
+      0 levels  →  1.0  (exact)
+      1 level   →  0.6
+      2 levels  →  0.3
+      3+ levels →  0.0
+    """
+    DIST_SCORES = {0: 1.0, 1: 0.6, 2: 0.3}
+    _BLANK = re.compile(r"^N[0-9a-f]{24,}$", re.I)
+
+    def __init__(self, ontology_root: Path) -> None:
+        self._root = ontology_root
+        self._parents: Dict[str, Dict[str, Set[str]]] = {}
+
+    def _local(self, uri: str) -> str:
+        local = str(uri).rsplit("/", 1)[-1].rsplit("#", 1)[-1]
+        return re.sub(r"[^a-z0-9]+", "", local.casefold())
+
+    def _load(self, ontology: str) -> Dict[str, Set[str]]:
+        if ontology in self._parents:
+            return self._parents[ontology]
+        import rdflib
+        from rdflib import RDFS
+        warnings.filterwarnings("ignore")
+        g = rdflib.Graph()
+        ont_dir = self._root / ontology
+        if ontology == "uco":
+            for f in ont_dir.rglob("*.ttl"):
+                try: g.parse(str(f), format="turtle")
+                except Exception: pass
+        else:
+            for f in ont_dir.rglob("*.owl"):
+                try: g.parse(str(f), format="xml")
+                except Exception: pass
+        parents: Dict[str, Set[str]] = {}
+        for s, o in g.subject_objects(RDFS.subClassOf):
+            s_loc = self._local(str(s))
+            o_loc = self._local(str(o))
+            if (s_loc and o_loc and s_loc != o_loc
+                    and not self._BLANK.match(s_loc)
+                    and not self._BLANK.match(o_loc)):
+                parents.setdefault(s_loc, set()).add(o_loc)
+        self._parents[ontology] = parents
+        return parents
+
+    def _ancestors(self, start: str, parents: Dict[str, Set[str]], max_depth: int) -> Dict[str, int]:
+        visited: Dict[str, int] = {start: 0}
+        queue: deque = deque([(start, 0)])
+        while queue:
+            node, depth = queue.popleft()
+            if depth >= max_depth:
+                continue
+            for parent in parents.get(node, set()):
+                if parent not in visited:
+                    visited[parent] = depth + 1
+                    queue.append((parent, depth + 1))
+        return visited
+
+    def score(self, pred_type: str, gold_type: str, ontology: str) -> float:
+        """Return hierarchical match score in {0.0, 0.3, 0.6, 1.0}."""
+        pred_norm = _normalize_type_label(pred_type)
+        gold_norm = _normalize_type_label(gold_type)
+        if not pred_norm or not gold_norm:
+            return 0.0
+        if pred_norm == gold_norm:
+            return 1.0
+        parents = self._load(ontology)
+        max_d = max(self.DIST_SCORES)  # 2
+        pred_anc = self._ancestors(pred_norm, parents, max_d)
+        if gold_norm in pred_anc:
+            return self.DIST_SCORES.get(pred_anc[gold_norm], 0.0)
+        gold_anc = self._ancestors(gold_norm, parents, max_d)
+        if pred_norm in gold_anc:
+            return self.DIST_SCORES.get(gold_anc[pred_norm], 0.0)
+        return 0.0
 
 
-def _triple_display(t: dict) -> str:
-    return (f"({t.get('subject','?')}, "
-            f"{t.get('relation','?')}, "
-            f"{t.get('object','?')})")
+_ONTOLOGY_HIERARCHY: Optional[OntologyHierarchy] = None
+
+
+def _get_hierarchy() -> OntologyHierarchy:
+    global _ONTOLOGY_HIERARCHY
+    if _ONTOLOGY_HIERARCHY is None:
+        _ONTOLOGY_HIERARCHY = OntologyHierarchy(ROOT / "ontology")
+    return _ONTOLOGY_HIERARCHY
 
 
 # ── Metric helpers ────────────────────────────────────────────────────────────
 
-def _prf(tp: int, predicted: int, gold: int) -> dict:
-    p  = tp / predicted if predicted > 0 else 0.0
-    r  = tp / gold      if gold      > 0 else 0.0
+def _prf(tp, predicted: int, gold: int) -> dict:
+    tp_f = float(tp)
+    p  = tp_f / predicted if predicted > 0 else 0.0
+    r  = tp_f / gold      if gold      > 0 else 0.0
     f1 = 2 * p * r / (p + r) if (p + r) > 0 else 0.0
     return {"p": round(p, 4), "r": round(r, 4), "f1": round(f1, 4),
             "tp": tp, "predicted": predicted, "gold": gold}
@@ -86,37 +157,59 @@ def _aggregate(metrics_list: List[dict]) -> dict:
     for k in ["p", "r", "f1"]:
         vals = [m[k] for m in metrics_list if k in m]
         result[f"macro_{k}"] = round(sum(vals) / len(vals), 4) if vals else 0.0
-    tp   = sum(m.get("tp",        0) for m in metrics_list)
+    tp   = sum(m.get("tp", 0) for m in metrics_list)
     pred = sum(m.get("predicted", 0) for m in metrics_list)
-    gold = sum(m.get("gold",      0) for m in metrics_list)
+    gold = sum(m.get("gold", 0) for m in metrics_list)
     micro = _prf(tp, pred, gold)
     result["micro_p"]  = micro["p"]
     result["micro_r"]  = micro["r"]
     result["micro_f1"] = micro["f1"]
+    result["micro_tp"] = tp
+    result["micro_fp"] = pred - tp
+    result["micro_fn"] = gold - tp
     return result
 
+
+# ── Triple string helpers ─────────────────────────────────────────────────────
 
 SUPPORTED_ONTOLOGIES = {"uco", "malont", "stix"}
 EMPTY_TYPE_MARKERS = {"", "none", "null", "nil", "unknown", "unmapped", "nonmatch", "nomatch"}
 
 
-def _normalize_entity_ref(value):
+def _triple_soft(t: dict) -> str:
+    s = t.get("subject",  "").strip()
+    o = t.get("object",   "").strip()
+    return f"{s} [SEP] {o}"
+
+
+def _triple_full(t: dict) -> str:
+    s = t.get("subject",  "").strip()
+    r = t.get("relation", "").strip()
+    o = t.get("object",   "").strip()
+    return f"{s} [SEP] {r} [SEP] {o}"
+
+
+def _triple_display(t: dict) -> str:
+    return (f"({t.get('subject','?')}, "
+            f"{t.get('relation','?')}, "
+            f"{t.get('object','?')})")
+
+
+def _normalize_entity_ref(value) -> str:
     if isinstance(value, dict):
         return value.get("entity_text", "")
     return value or ""
 
 
+# ── GT loading ────────────────────────────────────────────────────────────────
+
 def _load_gt_with_implicit(gt_dir: str) -> dict:
-    """
-    Load CTINexus typed GT. Returns dict: id → {ground_truth_triples, implicit_triples, ...}.
-    """
     path = Path(gt_dir)
     if path.is_file():
         typed = path if path.stem.endswith("_typed") else path.with_name(f"{path.stem}_typed.json")
         files = [typed]
     else:
         files = sorted(path.glob("*_typed.json"))
-
     if not files:
         raise ValueError(f"No *_typed.json files found under: {gt_dir}")
 
@@ -124,31 +217,32 @@ def _load_gt_with_implicit(gt_dir: str) -> dict:
     for f in files:
         with open(f, encoding="utf-8") as fp:
             raw = json.load(fp)
-
         sid = f.stem[:-6] if f.stem.endswith("_typed") else f.stem
 
         def _typed_triples(items: List[dict]) -> List[dict]:
-            triples = []
-            for t in items:
-                triples.append({
-                    "subject": _normalize_entity_ref(t.get("subject", "")),
+            return [
+                {
+                    "subject":  _normalize_entity_ref(t.get("subject", "")),
                     "relation": t.get("relation", ""),
-                    "object": _normalize_entity_ref(t.get("object", "")),
+                    "object":   _normalize_entity_ref(t.get("object", "")),
                     "ontology_types": {
-                        ontology: t.get(f"relation_{ontology}_type", {}) or {}
-                        for ontology in SUPPORTED_ONTOLOGIES
+                        ont: t.get(f"relation_{ont}_type", {}) or {}
+                        for ont in SUPPORTED_ONTOLOGIES
                     },
-                })
-            return triples
+                }
+                for t in items
+            ]
 
         gt_map[sid] = {
             "id": sid,
             "text": raw.get("text", ""),
             "ground_truth_triples": _typed_triples(raw.get("explicit_triplets", [])),
-            "implicit_triples": _typed_triples(raw.get("implicit_triplets", [])),
+            "implicit_triples":     _typed_triples(raw.get("implicit_triplets", [])),
         }
     return gt_map
 
+
+# ── Type helpers ──────────────────────────────────────────────────────────────
 
 def _normalize_ontology(ontology: str) -> str:
     return (ontology or "").strip().lower()
@@ -186,30 +280,38 @@ def _relation_gold_schema_type(obj: dict, ontology: str) -> str:
     return ((obj.get("ontology_types", {}) or {}).get(ontology) or {}).get("name", "").strip()
 
 
-def _type_matches(pred_type: str, gold_type: str) -> bool:
-    return _normalize_type_label(pred_type) == _normalize_type_label(gold_type)
-
-
-def _count_relation_type_tp(
+def _count_relation_type_hier_stats(
     pred_triples: List[dict],
     gold_triples: List[dict],
     pairs: List[Tuple[int, int]],
     ontology: str,
-) -> int:
-    tp = 0
+) -> Tuple[float, int]:
+    """
+    Returns (score_sum, eligible).
+    eligible = matched pairs where BOTH pred and gold have non-empty relation types.
+    Deduplicates gold indices to prevent inflated counts (fixes R > 1.0 bug).
+    """
+    hier = _get_hierarchy()
+    score_sum = 0.0
+    eligible  = 0
+    used_g: set = set()
     for pi, gj in pairs:
-        if 0 <= pi < len(pred_triples) and 0 <= gj < len(gold_triples):
-            if _type_matches(_relation_pred_type(pred_triples[pi]), _relation_gold_schema_type(gold_triples[gj], ontology)):
-                tp += 1
-    return tp
+        if gj in used_g:
+            continue
+        if not (0 <= pi < len(pred_triples) and 0 <= gj < len(gold_triples)):
+            continue
+        used_g.add(gj)
+        pred_type = _relation_pred_type(pred_triples[pi])
+        gold_type = _relation_gold_schema_type(gold_triples[gj], ontology)
+        pred_norm = _normalize_type_label(pred_type)
+        gold_norm = _normalize_type_label(gold_type)
+        if pred_norm and gold_norm:
+            eligible  += 1
+            score_sum += hier.score(pred_type, gold_type, ontology)
+    return score_sum, eligible
 
 
-def _gold_relation_type_display(obj: dict, ontology: str) -> str:
-    label = _relation_gold_schema_type(obj, ontology)
-    return label or "NON_MATCH"
-
-
-# ── Embedding matcher ─────────────────────────────────────────────────────────
+# ── Matchers ──────────────────────────────────────────────────────────────────
 
 class EmbeddingMatcher:
     def __init__(self, threshold: float = 0.75, model_name: str = "all-MiniLM-L6-v2"):
@@ -255,6 +357,41 @@ class EmbeddingMatcher:
         return len(matched), matched
 
 
+class JaccardMatcher:
+    def __init__(self, threshold: float = 0.2) -> None:
+        self.threshold = threshold
+
+    @staticmethod
+    def _tokens(s: str) -> set:
+        return set(re.sub(r"[^\w]+", " ", s.lower()).split())
+
+    def similarity(self, a: str, b: str) -> float:
+        ta, tb = self._tokens(a), self._tokens(b)
+        if not ta and not tb:
+            return 1.0
+        if not ta or not tb:
+            return 0.0
+        return len(ta & tb) / len(ta | tb)
+
+    def greedy_match(
+        self, preds: List[str], golds: List[str]
+    ) -> Tuple[int, List[Tuple[int, int, float]]]:
+        if not preds or not golds:
+            return 0, []
+        pairs = sorted(
+            [(i, j, self.similarity(preds[i], golds[j]))
+             for i in range(len(preds)) for j in range(len(golds))],
+            key=lambda x: x[2], reverse=True,
+        )
+        used_p, used_g, matched = set(), set(), []
+        for pi, gj, sc in pairs:
+            if sc >= self.threshold and pi not in used_p and gj not in used_g:
+                matched.append((pi, gj, sc))
+                used_p.add(pi)
+                used_g.add(gj)
+        return len(matched), matched
+
+
 # ── LLM helpers ───────────────────────────────────────────────────────────────
 
 def _build_llm(provider: str, model: str, base_url: str = None):
@@ -283,16 +420,14 @@ def _build_llm(provider: str, model: str, base_url: str = None):
 
 
 async def _llm_batch_match_triples(
-    pred_strs: List[str],
-    gold_strs: List[str],
     pred_triples: List[dict],
     gold_triples: List[dict],
+    mode: str,   # "soft" or "full"
     llm,
-    mode: str,
 ) -> List[Tuple[int, int]]:
-    """One LLM call → 0-indexed (pred_i, gold_j) matched pairs."""
+    """One LLM call → 0-indexed (pred_i, gold_j) matched pairs. Deduplicates gold."""
     from langchain_core.messages import SystemMessage, HumanMessage
-    if not pred_strs or not gold_strs:
+    if not pred_triples or not gold_triples:
         return []
 
     if mode == "soft":
@@ -338,16 +473,19 @@ async def _llm_batch_match_triples(
         m = re.search(r'\[.*?\]', resp.content, re.DOTALL)
         if not m:
             return []
-        pairs = [
+        raw_pairs = [
             (int(d["pred"]) - 1, int(d["gold"]) - 1)
             for d in json.loads(m.group(0))
             if "pred" in d and "gold" in d
         ]
-        return [
-            (pi, gj)
-            for pi, gj in pairs
-            if 0 <= pi < len(pred_strs) and 0 <= gj < len(gold_strs)
-        ]
+        # Deduplicate: each gold at most once (first occurrence wins)
+        used_g: set = set()
+        pairs = []
+        for pi, gj in raw_pairs:
+            if 0 <= pi < len(pred_triples) and 0 <= gj < len(gold_triples) and gj not in used_g:
+                pairs.append((pi, gj))
+                used_g.add(gj)
+        return pairs
     except Exception:
         return []
 
@@ -362,184 +500,15 @@ def _count_llm_tp(pairs: List[Tuple[int, int]], n_pred: int, n_gold: int) -> int
     return tp
 
 
-# ── HITL ─────────────────────────────────────────────────────────────────────
-
-async def hitl_match_triples(
-    pred_triples: List[dict],
-    gold_triples: List[dict],
-    emb:          EmbeddingMatcher,
-    llm,
-    mode:         str,
-    sample_id:    str,
-    ontology:     str,
-) -> dict:
-    """
-    Interactive HITL triple matching.
-    Returns extraction/type TP counts and match_log.
-    """
-    if not pred_triples or not gold_triples:
-        return {
-            "emb_tp": 0,
-            "llm_tp": 0,
-            "human_tp": 0,
-            "emb_type_tp": 0,
-            "llm_type_tp": 0,
-            "human_type_tp": 0,
-            "match_log": [],
-        }
-
-    pred_strs = [_triple_str(t, mode) for t in pred_triples]
-    gold_strs = [_triple_str(t, mode) for t in gold_triples]
-
-    matrix    = emb.score_matrix(pred_strs, gold_strs)
-    emb_tp, emb_matches = emb.greedy_match(matrix)
-    emb_type_tp = _count_relation_type_tp(
-        pred_triples, gold_triples, [(pi, gj) for pi, gj, _ in emb_matches], ontology
-    )
-
-    llm_pairs     = await _llm_batch_match_triples(
-        pred_strs, gold_strs, pred_triples, gold_triples, llm, mode
-    )
-    llm_tp        = _count_llm_tp(llm_pairs, len(pred_triples), len(gold_triples))
-    llm_type_tp   = _count_relation_type_tp(pred_triples, gold_triples, llm_pairs, ontology)
-    llm_match_set = {
-        (pi, gj) for pi, gj in llm_pairs
-        if 0 <= pi < len(pred_triples) and 0 <= gj < len(gold_triples)
-    }
-
-    # Candidates: embedding > 0.35 OR LLM matched
-    _, low_cands = emb.greedy_match(matrix, threshold=0.35)
-    cand_pred_ids = {pi for pi, _, _ in low_cands}
-    for pi, gj in llm_pairs:
-        if pi not in cand_pred_ids and 0 <= pi < len(pred_triples) and 0 <= gj < len(gold_triples):
-            sc = matrix[pi][gj] if pi < len(matrix) else 0.0
-            low_cands.append((pi, gj, sc))
-            cand_pred_ids.add(pi)
-    low_cands.sort(key=lambda x: x[2], reverse=True)
-
-    W = 60
-    print(f"\n  ┌{'─'*W}┐")
-    print(f"  │{'HITL · Triple Matching  [mode: ' + mode + ']':^{W}}│")
-    print(f"  │  sample : {sample_id[:W-12]:<{W-12}}│")
-    print(f"  │  {len(pred_triples)} predicted  ×  {len(gold_triples)} gold  →  {len(low_cands)} candidates{' '*(W - len(str(len(pred_triples))) - len(str(len(gold_triples))) - len(str(len(low_cands))) - 30)}│")
-    print(f"  └{'─'*W}┘")
-    print(f"  Commands: y/↵=match  n=no-match  <num>=pick gold  s=auto(llm)  a=auto-all  q=quit\n")
-
-    print("  Gold triples:")
-    for j, t in enumerate(gold_triples):
-        print(f"    {j+1:3d}. {_triple_display(t)}")
-    print()
-
-    used_g:    set  = set()
-    human_tp:  int  = 0
-    human_type_tp: int = 0
-    match_log: list = []
-    auto_rest: bool = False
-
-    for idx, (pi, gj, emb_sc) in enumerate(low_cands):
-        if gj in used_g:
-            continue
-
-        emb_ok  = emb_sc >= emb.threshold
-        llm_ok  = (pi, gj) in llm_match_set
-        disagree = emb_ok != llm_ok
-        tag      = "  ← DISAGREE" if disagree else ""
-        pred_rel_type = _relation_pred_type(pred_triples[pi])
-        gold_schema_type = _relation_gold_schema_type(gold_triples[gj], ontology)
-        emb_type_match = emb_ok and _type_matches(pred_rel_type, gold_schema_type)
-        llm_type_match = llm_ok and _type_matches(pred_rel_type, gold_schema_type)
-
-        print(f"  [{idx+1}/{len(low_cands)}]  PREDICTED : {_triple_display(pred_triples[pi])}")
-        print(f"         GOLD [{gj+1:3d}]: {_triple_display(gold_triples[gj])}")
-        if mode == "soft":
-            print(f"         (soft match: subject + object only)")
-        print(f"           Pred type : {pred_rel_type or 'NON_MATCH'}")
-        print(f"           Gold type : {gold_schema_type or 'NON_MATCH'}")
-        print(f"           Embedding : {emb_sc:.3f}  {'✓ MATCH' if emb_ok else '✗ no-match'}")
-        print(f"           LLM Judge : {'✓ MATCH' if llm_ok else '✗ no-match'}{tag}")
-        print(f"           Type      : EMB={'✓' if emb_type_match else '✗'}  LLM={'✓' if llm_type_match else '✗'}")
-
-        if auto_rest:
-            is_match = llm_ok
-            decision = "auto(llm)"
-        else:
-            try:
-                choice = input("  Decision [y/↵/n/<num>/s/a/q]: ").strip().lower()
-            except EOFError:
-                choice = "s"
-
-            if choice == "q":
-                print("  [quit] saving partial results...")
-                break
-            elif choice == "a":
-                auto_rest = True
-                is_match  = llm_ok
-                decision  = "auto(llm)"
-            elif choice == "s":
-                is_match = llm_ok
-                decision = "skip→llm"
-            elif choice == "n":
-                is_match = False
-                decision = "human:n"
-            elif choice.isdigit():
-                new_gj = int(choice) - 1
-                if 0 <= new_gj < len(gold_triples) and new_gj not in used_g:
-                    gj       = new_gj
-                    is_match = True
-                    decision = f"human→gold[{new_gj+1}]"
-                    print(f"  → matched to gold [{new_gj+1}]: {_triple_display(gold_triples[new_gj])}")
-                else:
-                    print("  [!] Invalid or already matched. Skipping.")
-                    is_match = False
-                    decision = "invalid"
-            else:
-                is_match = True
-                decision = "human:y"
-
-        if is_match:
-            human_tp += 1
-            used_g.add(gj)
-            if _type_matches(pred_rel_type, gold_schema_type):
-                human_type_tp += 1
-
-        match_log.append({
-            "pred":      _triple_display(pred_triples[pi]),
-            "gold":      _triple_display(gold_triples[gj]),
-            "gold_idx":  gj,
-            "pred_rel_class": pred_rel_type,
-            "gold_schema_type": gold_schema_type,
-            "emb_score": round(emb_sc, 4),
-            "emb_match": emb_ok,
-            "llm_match": llm_ok,
-            "emb_type_match": emb_type_match,
-            "llm_type_match": llm_type_match,
-            "decision":  decision,
-            "matched":   is_match,
-            "type_match": is_match and _type_matches(pred_rel_type, gold_schema_type),
-        })
-        print()
-
-    return {
-        "emb_tp": emb_tp,
-        "llm_tp": llm_tp,
-        "human_tp": human_tp,
-        "emb_type_tp": emb_type_tp,
-        "llm_type_tp": llm_type_tp,
-        "human_type_tp": human_type_tp,
-        "match_log": match_log,
-    }
-
-
 # ── Per-sample evaluation ─────────────────────────────────────────────────────
 
 async def evaluate_sample(
     item:             dict,
     gt:               dict,
+    jac:              JaccardMatcher,
     emb:              EmbeddingMatcher,
     llm,
-    mode:             str,
     include_implicit: bool,
-    hitl:             bool,
     ontology_override: str = None,
 ) -> dict:
     ontology = _resolve_ontology(item, ontology_override)
@@ -552,266 +521,233 @@ async def evaluate_sample(
     if include_implicit:
         golds = golds + list(gt.get("implicit_triples", []))
 
-    base = {"id": gt["id"], "ontology": ontology, "n_pred": len(preds), "n_gold": len(golds),
-            "n_gold_explicit": len(gt.get("ground_truth_triples", [])),
-            "n_gold_implicit": len(gt.get("implicit_triples", []))}
-    gold_type_list = [_gold_relation_type_display(t, ontology) for t in golds]
+    base = {
+        "id": gt["id"], "ontology": ontology,
+        "n_pred": len(preds), "n_gold": len(golds),
+        "n_gold_explicit": len(gt.get("ground_truth_triples", [])),
+        "n_gold_implicit": len(gt.get("implicit_triples", [])),
+    }
+    gold_type_list = [
+        _relation_gold_schema_type(t, ontology) or "NON_MATCH" for t in golds
+    ]
+    zero      = _prf(0, len(preds), len(golds))
+    zero_type = _prf(0.0, 0, 0)
 
     if not preds or not golds:
-        zero = _prf(0, len(preds), len(golds))
-        gold_strs = [_triple_display(t) for t in golds]
         return {
             **base,
-            "gold_list": gold_strs,
+            "gold_list":      [_triple_full(t) for t in golds],
             "gold_type_list": gold_type_list,
-            "missed_gold": gold_strs,
-            "missed_gold_type": [
-                f"{gold_strs[j]} :: {gold_type_list[j]}" for j in range(len(gold_strs))
-            ],
-            "emb": zero,
-            "llm": zero,
-            "emb_type": zero,
-            "llm_type": zero,
+            "missed_gold":    [_triple_full(t) for t in golds],
+            "soft": {"jaccard": zero, "emb": zero, "llm": zero},
+            "full": {"jaccard": zero, "emb": zero, "llm": zero},
+            "type_hier": zero_type,
         }
 
-    pred_strs = [_triple_str(t, mode) for t in preds]
-    gold_strs = [_triple_str(t, mode) for t in golds]
+    # String representations for both modes
+    soft_preds = [_triple_soft(t) for t in preds]
+    soft_golds = [_triple_soft(t) for t in golds]
+    full_preds = [_triple_full(t) for t in preds]
+    full_golds = [_triple_full(t) for t in golds]
 
-    if hitl:
-        counts = await hitl_match_triples(preds, golds, emb, llm, mode, gt["id"], ontology)
-        log = counts["match_log"]
-        # Identify missed golds in HITL (using indices if added to log, otherwise fallback)
-        matched_g_indices = {l["gold_idx"] for l in log if l.get("matched") and "gold_idx" in l}
-        matched_g_type_indices = {
-            l["gold_idx"] for l in log
-            if l.get("matched") and l.get("type_match") and "gold_idx" in l
-        }
-        missed = [gold_strs[j] for j in range(len(gold_strs)) if j not in matched_g_indices]
-        missed_type = [
-            f"{gold_strs[j]} :: {gold_type_list[j]}"
-            for j in range(len(gold_strs))
-            if j not in matched_g_type_indices
-        ]
+    # ── Jaccard (both modes) ──────────────────────────────────────────────────
+    jac_soft_tp, _ = jac.greedy_match(soft_preds, soft_golds)
+    jac_full_tp, _ = jac.greedy_match(full_preds, full_golds)
 
-        return {
-            **base,
-            "gold_list": gold_strs,
-            "gold_type_list": gold_type_list,
-            "missed_gold": missed,
-            "missed_gold_type": missed_type,
-            "emb":       _prf(counts["emb_tp"],       len(preds), len(golds)),
-            "llm":       _prf(counts["llm_tp"],       len(preds), len(golds)),
-            "human":     _prf(counts["human_tp"],     len(preds), len(golds)),
-            "emb_type":  _prf(counts["emb_type_tp"],  len(preds), len(golds)),
-            "llm_type":  _prf(counts["llm_type_tp"],  len(preds), len(golds)),
-            "human_type": _prf(counts["human_type_tp"], len(preds), len(golds)),
-            "match_log": log,
-        }
-    else:
-        matrix    = emb.score_matrix(pred_strs, gold_strs)
-        emb_tp, emb_matches = emb.greedy_match(matrix)
-        llm_pairs = await _llm_batch_match_triples(
-            pred_strs, gold_strs, preds, golds, llm, mode
-        )
-        llm_tp = _count_llm_tp(llm_pairs, len(preds), len(golds))
-        emb_type_tp = _count_relation_type_tp(
-            preds, golds, [(p, g) for p, g, _ in emb_matches], ontology
-        )
-        llm_type_tp = _count_relation_type_tp(preds, golds, llm_pairs, ontology)
+    # ── Embedding (both modes) ────────────────────────────────────────────────
+    soft_matrix = emb.score_matrix(soft_preds, soft_golds)
+    full_matrix = emb.score_matrix(full_preds, full_golds)
+    emb_soft_tp, _ = emb.greedy_match(soft_matrix)
+    emb_full_tp, _ = emb.greedy_match(full_matrix)
 
-        # Build detailed match log for JSON output
-        match_log = []
-        llm_matched_p = {p for p, g in llm_pairs}
-        llm_matched_g = {g for p, g in llm_pairs}
-        llm_type_matched_g = {
-            g for p, g in llm_pairs
-            if _type_matches(_relation_pred_type(preds[p]), _relation_gold_schema_type(golds[g], ontology))
-        }
-        emb_matched_p = {p for p, g, s in emb_matches}
+    # ── LLM (both modes, concurrent) ─────────────────────────────────────────
+    llm_soft_pairs, llm_full_pairs = await asyncio.gather(
+        _llm_batch_match_triples(preds, golds, "soft", llm),
+        _llm_batch_match_triples(preds, golds, "full", llm),
+    )
+    llm_soft_tp = _count_llm_tp(llm_soft_pairs, len(preds), len(golds))
+    llm_full_tp = _count_llm_tp(llm_full_pairs, len(preds), len(golds))
 
-        for pi, p_triple in enumerate(preds):
-            emb_info = next(((g, s) for p, g, s in emb_matches if p == pi), (None, 0.0))
-            llm_info = next((g for p, g in llm_pairs if p == pi), None)
-            pred_rel_type = _relation_pred_type(p_triple)
-            emb_gold_type = _relation_gold_schema_type(golds[emb_info[0]], ontology) if emb_info[0] is not None else None
-            llm_gold_type = _relation_gold_schema_type(golds[llm_info], ontology) if llm_info is not None else None
+    # ── Type matching: hierarchical, based on LLM-Full pairs ─────────────────
+    type_score, type_n = _count_relation_type_hier_stats(
+        preds, golds, llm_full_pairs, ontology
+    )
 
-            match_log.append({
-                "prediction": _triple_display(p_triple),
-                "pred_rel_class": pred_rel_type,
-                "emb_match": {
-                    "is_correct": pi in emb_matched_p,
-                    "gold": gold_strs[emb_info[0]] if emb_info[0] is not None else None,
-                    "gold_schema_type": emb_gold_type,
-                    "type_match": emb_info[0] is not None and _type_matches(pred_rel_type, emb_gold_type),
-                    "score": round(emb_info[1], 4)
-                },
-                "llm_judge": {
-                    "is_correct": pi in llm_matched_p,
-                    "gold": gold_strs[llm_info] if llm_info is not None else None,
-                    "gold_schema_type": llm_gold_type,
-                    "type_match": llm_info is not None and _type_matches(pred_rel_type, llm_gold_type),
-                }
-            })
+    # Missed gold triples (by LLM-Full)
+    llm_full_matched_g = {gj for _, gj in llm_full_pairs}
+    missed = [full_golds[j] for j in range(len(full_golds)) if j not in llm_full_matched_g]
 
-        missed = [gold_strs[j] for j in range(len(gold_strs)) if j not in llm_matched_g]
-        missed_type = [
-            f"{gold_strs[j]} :: {gold_type_list[j]}"
-            for j in range(len(gold_strs))
-            if j not in llm_type_matched_g
-        ]
-
-        return {
-            **base,
-            "gold_list": gold_strs,
-            "gold_type_list": gold_type_list,
-            "missed_gold": missed,
-            "missed_gold_type": missed_type,
-            "emb": _prf(emb_tp, len(preds), len(golds)),
-            "llm": _prf(llm_tp, len(preds), len(golds)),
-            "emb_type": _prf(emb_type_tp, len(preds), len(golds)),
-            "llm_type": _prf(llm_type_tp, len(preds), len(golds)),
-            "match_log": match_log
-        }
+    return {
+        **base,
+        "gold_list":      full_golds,
+        "gold_type_list": gold_type_list,
+        "missed_gold":    missed,
+        "soft": {
+            "jaccard": _prf(jac_soft_tp, len(preds), len(golds)),
+            "emb":     _prf(emb_soft_tp, len(preds), len(golds)),
+            "llm":     _prf(llm_soft_tp, len(preds), len(golds)),
+        },
+        "full": {
+            "jaccard": _prf(jac_full_tp, len(preds), len(golds)),
+            "emb":     _prf(emb_full_tp, len(preds), len(golds)),
+            "llm":     _prf(llm_full_tp, len(preds), len(golds)),
+        },
+        "type_hier": _prf(type_score, type_n, type_n),
+    }
 
 
 # ── Report ────────────────────────────────────────────────────────────────────
 
-def _print_metric_report(
-    results:   List[dict],
-    hitl:      bool,
-    mode:      str,
-    threshold: float,
-    llm_tag:   str,
-    implicit:  bool,
-    title:     str,
-    emb_key:   str,
-    llm_key:   str,
-    human_key: str = None,
+def _print_extraction_table(
+    results:       List[dict],
+    mode:          str,   # "soft" or "full"
+    mode_label:    str,   # "Soft (S+O)" or "Full (S+R+O)"
+    jac_threshold: float,
+    emb_threshold: float,
+    llm_tag:       str,
 ) -> None:
-    has_human = hitl and human_key is not None and any(human_key in r for r in results)
-    W = 72
+    ext_keys   = ["jaccard", "emb", "llm"]
+    ext_labels = {
+        "jaccard": f"Jaccard(≥{jac_threshold})",
+        "emb":     f"Emb(≥{emb_threshold})",
+        "llm":     f"LLM({llm_tag})",
+    }
 
-    scope = "explicit + implicit" if implicit else "explicit only"
+    sid_w = 28
+    COL   = "  TP   FP   FN     F1"
+    SEP   = "  │"
+    TITLE = f"TRIPLE EXTRACTION — {mode_label.upper()} — EVALUATION REPORT"
+    W     = max(sid_w + sum(len(SEP) + len(COL) for _ in ext_keys), len(TITLE))
+
     print("\n" + "=" * W)
-    print(f"{title:^{W}}")
-    print(f"{'mode: ' + mode + '  |  gold scope: ' + scope:^{W}}")
+    print(f"{TITLE:^{W}}")
     print("=" * W)
 
-    hdr = f"  {'Sample':<44}  {'EMB-F1':>6}  {'LLM-F1':>6}"
-    if has_human:
-        hdr += f"  {'HUM-F1':>6}"
-    print(hdr)
+    tag_hdr = f"  {'Sample':<{sid_w}}" + "".join(
+        f"{SEP}{ext_labels[k]:^{len(COL)}}" for k in ext_keys
+    )
+    col_hdr = f"  {'':>{sid_w}}" + "".join(
+        f"{SEP}{'  TP':>4}{'  FP':>5}{'  FN':>5}{'    F1':>7}" for _ in ext_keys
+    )
+    print(tag_hdr)
+    print(col_hdr)
     print("─" * W)
 
     for r in results:
-        sid  = r["id"][:42]
-        line = f"  {sid:<44}  {r[emb_key]['f1']:.4f}  {r[llm_key]['f1']:.4f}"
-        if has_human:
-            fallback = human_key or llm_key
-            line += f"  {r.get(fallback, r[llm_key])['f1']:.4f}"
+        sid  = r["id"][:sid_w]
+        line = f"  {sid:<{sid_w}}"
+        for k in ext_keys:
+            m  = r.get(mode, {}).get(k, {})
+            tp = m.get("tp", 0)
+            fp = m.get("predicted", 0) - tp
+            fn = m.get("gold", 0) - tp
+            line += f"{SEP}  {tp:>4}  {fp:>4}  {fn:>4}  {m.get('f1', 0.0):>6.4f}"
         print(line)
 
     print("─" * W)
-
-    emb_agg = _aggregate([r[emb_key] for r in results])
-    llm_agg = _aggregate([r[llm_key] for r in results])
-
-    def _row(label, emb, llm, human=None):
-        s = (f"  {label:<44}  "
-             f"{emb['p']:.4f}/{emb['r']:.4f}/{emb['f1']:.4f}  "
-             f"{llm['p']:.4f}/{llm['r']:.4f}/{llm['f1']:.4f}")
-        if human:
-            s += f"  {human['p']:.4f}/{human['r']:.4f}/{human['f1']:.4f}"
-        print(s)
+    aggs = {k: _aggregate([r.get(mode, {}).get(k, {}) for r in results]) for k in ext_keys}
 
     print()
-    hdr2 = f"  {'':44}  {'Embed P/R/F1':>18}  {'LLM P/R/F1':>18}"
-    if has_human:
-        hdr2 += f"  {'Human P/R/F1':>18}"
-    print(hdr2)
-    print(f"  {'':44}  {'(≥'+str(threshold)+')':>18}  {llm_tag[:18]:>18}")
+    micro_hdr = f"  {'':>{sid_w}}" + "".join(
+        f"{SEP}{'  TP   FP   FN  Micro-F1':^{len(COL)}}" for _ in ext_keys
+    )
+    print(micro_hdr)
+
+    micro_line = f"  {'Micro total':<{sid_w}}"
+    macro_line = f"  {'Macro-F1   ':<{sid_w}}"
+    pr_line    = f"  {'P / R      ':<{sid_w}}"
+    for k in ext_keys:
+        a  = aggs[k]
+        tp = a.get("micro_tp", 0)
+        fp = a.get("micro_fp", 0)
+        fn = a.get("micro_fn", 0)
+        micro_line += f"{SEP}  {tp:>4}  {fp:>4}  {fn:>4}  {a.get('micro_f1', 0.0):>6.4f}"
+        macro_line += f"{SEP}  {'':>4}  {'':>4}  {'':>4}  {a.get('macro_f1', 0.0):>6.4f}"
+        pr_line    += f"{SEP}  P={a.get('micro_p', 0.0):.4f}  R={a.get('micro_r', 0.0):.4f}{'':>7}"
+    print(micro_line)
+    print(macro_line)
+    print(pr_line)
+    print("=" * W)
+
+
+def _print_type_report(results: List[dict], llm_tag: str) -> None:
+    sid_w = 32
+    COL   = "  Score  Elig   Acc"
+    SEP   = "  │"
+    TITLE = "RELATION TYPE MATCHING — HIERARCHICAL (subClassOf: exact=1.0 / ±1=0.6 / ±2=0.3)"
+    W     = max(sid_w + 2 + len(COL), len(TITLE))
+
+    print("\n" + "=" * W)
+    print(f"{TITLE:^{W}}")
+    print("=" * W)
+
+    tag_hdr = f"  {'Sample':<{sid_w}}{SEP}{'── LLM-Full matched pairs ──':^{len(COL)}}"
+    col_hdr = f"  {'':>{sid_w}}{SEP}{'Score':>7}{'Elig':>6}{'Acc':>6}"
+    print(tag_hdr)
+    print(col_hdr)
     print("─" * W)
 
-    emb_macro = {"p": emb_agg["macro_p"], "r": emb_agg["macro_r"], "f1": emb_agg["macro_f1"]}
-    emb_micro = {"p": emb_agg["micro_p"], "r": emb_agg["micro_r"], "f1": emb_agg["micro_f1"]}
-    llm_macro = {"p": llm_agg["macro_p"], "r": llm_agg["macro_r"], "f1": llm_agg["macro_f1"]}
-    llm_micro = {"p": llm_agg["micro_p"], "r": llm_agg["micro_r"], "f1": llm_agg["micro_f1"]}
+    for r in results:
+        sid = r["id"][:sid_w]
+        m   = r.get("type_hier", {})
+        sc  = m.get("tp", 0.0)
+        eli = m.get("predicted", 0)
+        acc = m.get("f1", 0.0)
+        print(f"  {sid:<{sid_w}}{SEP}  {sc:>6.2f}  {eli:>4}  {acc:>5.4f}")
 
-    if has_human:
-        human_agg  = _aggregate([r[human_key] for r in results if human_key and human_key in r])
-        hum_macro  = {"p": human_agg["macro_p"], "r": human_agg["macro_r"], "f1": human_agg["macro_f1"]}
-        hum_micro  = {"p": human_agg["micro_p"], "r": human_agg["micro_r"], "f1": human_agg["micro_f1"]}
-        _row("Macro avg", emb_macro, llm_macro, hum_macro)
-        _row("Micro avg", emb_micro, llm_micro, hum_micro)
-    else:
-        _row("Macro avg", emb_macro, llm_macro)
-        _row("Micro avg", emb_micro, llm_micro)
+    print("─" * W)
+    all_m     = [r.get("type_hier", {}) for r in results]
+    tot_sc    = sum(m.get("tp", 0.0) for m in all_m)
+    tot_eli   = sum(m.get("predicted", 0) for m in all_m)
+    micro_acc = tot_sc / tot_eli if tot_eli > 0 else 0.0
+    macro_acc = sum(m.get("f1", 0.0) for m in all_m) / len(all_m) if all_m else 0.0
 
+    print()
+    print(f"  {'':>{sid_w}}{SEP}{'Score':>7}{'Elig':>6}{'Acc':>6}")
+    print(f"  {'Micro total':<{sid_w}}{SEP}  {tot_sc:>6.2f}  {tot_eli:>4}  {micro_acc:>5.4f}")
+    print(f"  {'Macro-Acc  ':<{sid_w}}{SEP}  {'':>6}  {'':>4}  {macro_acc:>5.4f}")
+    print(f"\n  Note: Score = sum of partial credits (1.0/0.6/0.3).  Acc = Score/Eligible.")
+    print(f"        LLM-Full pairs used for triple matching; type checked on matched pairs only.")
     print("=" * W)
 
 
 def _print_report(
-    results:   List[dict],
-    hitl:      bool,
-    mode:      str,
-    threshold: float,
-    llm_tag:   str,
-    implicit:  bool,
+    results:       List[dict],
+    jac_threshold: float,
+    emb_threshold: float,
+    llm_tag:       str,
+    implicit:      bool,
 ) -> None:
-    _print_metric_report(
-        results,
-        hitl,
-        mode,
-        threshold,
-        llm_tag,
-        implicit,
-        "TRIPLE EXTRACTION — EVALUATION REPORT",
-        "emb",
-        "llm",
-        "human",
-    )
-    _print_metric_report(
-        results,
-        hitl,
-        mode,
-        threshold,
-        llm_tag,
-        implicit,
-        "RELATION TYPE MATCHING — EVALUATION REPORT",
-        "emb_type",
-        "llm_type",
-        "human_type",
-    )
+    _print_extraction_table(results, "soft", "SOFT (S+O)",   jac_threshold, emb_threshold, llm_tag)
+    _print_extraction_table(results, "full", "FULL (S+R+O)", jac_threshold, emb_threshold, llm_tag)
+    _print_type_report(results, llm_tag)
 
 
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 async def main() -> None:
     parser = argparse.ArgumentParser(
-        description="Triple Extraction Evaluation (Embedding + LLM-as-a-Judge)",
+        description="Triple Extraction Evaluation (Jaccard + Embedding + LLM, Soft + Full)",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--results",      required=True, help="Model output JSON (list format)")
-    parser.add_argument("--ground-truth", required=True, help="GT annotation directory")
-    parser.add_argument("--mode",         default="soft", choices=["soft", "full"],
-                        help="soft=match S+O only (default), full=match S+R+O")
+    parser.add_argument("--results",          required=True, help="Model output JSON (list format)")
+    parser.add_argument("--ground-truth",     required=True, help="GT annotation directory")
     parser.add_argument("--include-implicit", action="store_true",
-                        help="Also include implicit_triplets in gold (Step 3)")
-    parser.add_argument("--threshold",    type=float, default=0.75,
+                        help="Also include implicit_triplets in gold")
+    parser.add_argument("--emb-threshold",    type=float, default=0.75,
                         help="Embedding cosine threshold (default: 0.75)")
-    parser.add_argument("--ontology",     default=None, choices=sorted(SUPPORTED_ONTOLOGIES),
+    parser.add_argument("--jac-threshold",    type=float, default=0.2,
+                        help="Jaccard similarity threshold (default: 0.2)")
+    parser.add_argument("--ontology",         default=None, choices=sorted(SUPPORTED_ONTOLOGIES),
                         help="Override ontology for relation type matching (default: infer from results)")
-    parser.add_argument("--llm-provider", default=None,
+    parser.add_argument("--llm-provider",     default=None,
                         help="LLM judge provider: openai|gemini|claude|ollama")
-    parser.add_argument("--llm-model",    default=None, help="LLM model name")
-    parser.add_argument("--llm-base-url", default=None, help="LLM judge base URL")
-    parser.add_argument("--hitl",         action="store_true",
-                        help="Human-in-the-Loop interactive review")
-    parser.add_argument("--limit",        type=int, default=None,
+    parser.add_argument("--llm-model",        default=None, help="LLM model name")
+    parser.add_argument("--llm-base-url",     default=None, help="LLM judge base URL")
+    parser.add_argument("--limit",            type=int, default=None,
                         help="Max samples to evaluate (default: all)")
-    parser.add_argument("--output",       default=None,
+    parser.add_argument("--output",           default=None,
                         help="Save detailed per-sample metrics to JSON")
     args = parser.parse_args()
 
@@ -819,26 +755,28 @@ async def main() -> None:
     llm_provider = args.llm_provider or config.EVAL_LLM_PROVIDER
     llm_model    = args.llm_model    or config.EVAL_LLM_MODEL
     llm_base_url = args.llm_base_url or config.EVAL_LLM_BASE_URL
+    llm_tag      = f"{llm_provider}/{llm_model}"
 
     print(f"[*] Results      : {args.results}")
     print(f"[*] Ground truth : {args.ground_truth}")
-    print(f"[*] Mode         : {args.mode}")
     print(f"[*] Gold scope   : {'explicit + implicit' if args.include_implicit else 'explicit only'}")
-    print(f"[*] Emb threshold: {args.threshold}")
+    print(f"[*] Emb threshold: {args.emb_threshold}")
+    print(f"[*] Jac threshold: {args.jac_threshold}")
     print(f"[*] Type ontology: {args.ontology or 'auto'}")
-    print(f"[*] LLM judge    : {llm_provider}/{llm_model}")
+    print(f"[*] LLM judge    : {llm_tag}")
     if llm_base_url:
         print(f"[*] LLM endpoint : {llm_base_url}")
-    print(f"[*] HITL         : {'ON' if args.hitl else 'OFF'}")
+    print(f"[*] Modes        : SOFT (S+O)  +  FULL (S+R+O)")
 
     with open(args.results, encoding="utf-8") as f:
         extracted = json.load(f)
     if not isinstance(extracted, list):
-        raise ValueError("Results file must be a JSON list (baseline format).")
+        raise ValueError("Results file must be a JSON list.")
 
     gt_map = _load_gt_with_implicit(args.ground_truth)
 
-    emb = EmbeddingMatcher(threshold=args.threshold)
+    jac = JaccardMatcher(threshold=args.jac_threshold)
+    emb = EmbeddingMatcher(threshold=args.emb_threshold)
     llm = _build_llm(llm_provider, llm_model, llm_base_url)
 
     if args.limit:
@@ -859,63 +797,61 @@ async def main() -> None:
 
         print(f"\n[{i+1}/{len(extracted)}] {file_id}", flush=True)
         result = await evaluate_sample(
-            item, gt, emb, llm, args.mode, args.include_implicit, args.hitl, args.ontology
+            item, gt, jac, emb, llm, args.include_implicit, args.ontology
         )
         results.append(result)
 
-        if not args.hitl:
-            expl = f"  gold={result['n_gold_explicit']} explicit"
-            if args.include_implicit:
-                expl += f"+{result['n_gold_implicit']} implicit"
-            print(f"  pred={result['n_pred']}  {expl}")
-            print(
-                f"  EMB  EXT P={result['emb']['p']:.3f}  R={result['emb']['r']:.3f}  F1={result['emb']['f1']:.3f}"
-                f"  |  TYPE F1={result['emb_type']['f1']:.3f}"
-            )
-            print(
-                f"  LLM  EXT P={result['llm']['p']:.3f}  R={result['llm']['r']:.3f}  F1={result['llm']['f1']:.3f}"
-                f"  |  TYPE F1={result['llm_type']['f1']:.3f}"
-            )
-        else:
-            h = result.get("human", result["llm"])
-            ht = result.get("human_type", result["llm_type"])
-            print(f"  ── result ──")
-            print(f"  EMB   EXT P={result['emb']['p']:.3f}  R={result['emb']['r']:.3f}  F1={result['emb']['f1']:.3f}  |  TYPE F1={result['emb_type']['f1']:.3f}")
-            print(f"  LLM   EXT P={result['llm']['p']:.3f}  R={result['llm']['r']:.3f}  F1={result['llm']['f1']:.3f}  |  TYPE F1={result['llm_type']['f1']:.3f}")
-            print(f"  HUMAN EXT P={h['p']:.3f}  R={h['r']:.3f}  F1={h['f1']:.3f}  |  TYPE F1={ht['f1']:.3f}")
+        expl = f"  gold={result['n_gold_explicit']} explicit"
+        if args.include_implicit:
+            expl += f"+{result['n_gold_implicit']} implicit"
+        print(f"  pred={result['n_pred']}  {expl}")
+
+        s  = result["soft"]
+        f_ = result["full"]
+        th = result["type_hier"]
+        print(
+            f"  SOFT  JAC F1={s['jaccard']['f1']:.3f}  "
+            f"EMB F1={s['emb']['f1']:.3f}  "
+            f"LLM F1={s['llm']['f1']:.3f}"
+        )
+        print(
+            f"  FULL  JAC F1={f_['jaccard']['f1']:.3f}  "
+            f"EMB F1={f_['emb']['f1']:.3f}  "
+            f"LLM F1={f_['llm']['f1']:.3f}  "
+            f"│  TYPE(hier) Acc={th['f1']:.3f} "
+            f"[Score={th['tp']:.1f}/{th['predicted']} eligible]"
+        )
 
     if skipped:
         print(f"\n[!] Skipped {skipped} samples (no matching GT or extraction error)")
 
-    _print_report(results, args.hitl, args.mode, args.threshold,
-                  f"{llm_provider}/{llm_model}", args.include_implicit)
+    _print_report(results, args.jac_threshold, args.emb_threshold, llm_tag, args.include_implicit)
 
     if args.output:
         out = {
             "task":             "triple_extraction",
             "results_file":     args.results,
             "ground_truth":     args.ground_truth,
-            "mode":             args.mode,
             "include_implicit": args.include_implicit,
-            "threshold":        args.threshold,
+            "emb_threshold":    args.emb_threshold,
+            "jac_threshold":    args.jac_threshold,
             "ontology":         args.ontology or "auto",
-            "llm":              f"{llm_provider}/{llm_model}",
-            "hitl":             args.hitl,
+            "llm":              llm_tag,
             "num_samples":      len(results),
             "skipped":          skipped,
-            "embedding":        _aggregate([r["emb"] for r in results]),
-            "llm_judge":        _aggregate([r["llm"] for r in results]),
-            "embedding_type":   _aggregate([r["emb_type"] for r in results]),
-            "llm_judge_type":   _aggregate([r["llm_type"] for r in results]),
-            "samples":          results,
+            "soft": {
+                "jaccard":   _aggregate([r["soft"]["jaccard"] for r in results]),
+                "embedding": _aggregate([r["soft"]["emb"]     for r in results]),
+                "llm_judge": _aggregate([r["soft"]["llm"]     for r in results]),
+            },
+            "full": {
+                "jaccard":   _aggregate([r["full"]["jaccard"] for r in results]),
+                "embedding": _aggregate([r["full"]["emb"]     for r in results]),
+                "llm_judge": _aggregate([r["full"]["llm"]     for r in results]),
+            },
+            "type_hier": _aggregate([r["type_hier"] for r in results]),
+            "samples":    results,
         }
-        if args.hitl:
-            human_list = [r["human"] for r in results if "human" in r]
-            human_type_list = [r["human_type"] for r in results if "human_type" in r]
-            if human_list:
-                out["human_hitl"] = _aggregate(human_list)
-            if human_type_list:
-                out["human_hitl_type"] = _aggregate(human_type_list)
         with open(args.output, "w", encoding="utf-8") as f:
             json.dump(out, f, indent=2, ensure_ascii=False)
         print(f"\n[+] Detailed metrics → {args.output}")
