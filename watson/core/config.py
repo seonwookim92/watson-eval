@@ -68,15 +68,15 @@ class Config:
     # endpoint so standalone evaluate_* scripts follow the active deployment config.
     EVAL_LLM_PROVIDER = os.getenv(
         "EVAL_LLM_PROVIDER",
-        "openai" if os.getenv("WATSON_NEW_LLM_BASE_URL") else "ollama",
+        os.getenv("LLM_PROVIDER", "openai"),
     )
     EVAL_LLM_MODEL = os.getenv(
         "EVAL_LLM_MODEL",
-        os.getenv("WATSON_NEW_LLM_MODEL", "qwen3.5-35b"),
+        os.getenv("OPENAI_MODEL", "qwen3.5-35b"),
     )
     EVAL_LLM_BASE_URL = os.getenv(
         "EVAL_LLM_BASE_URL",
-        os.getenv("WATSON_NEW_LLM_BASE_URL", "http://192.168.100.2:8081/v1"),
+        os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8081/v1"),
     )
 
     @classmethod

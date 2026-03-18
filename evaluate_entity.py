@@ -152,18 +152,24 @@ def _type_matches(pred_type: str, gold_type: str) -> bool:
     return _normalize_type_label(pred_type) == _normalize_type_label(gold_type)
 
 
-def _count_entity_type_tp(
+def _count_entity_type_stats(
     pred_objs: List[dict],
     gold_objs: List[dict],
     pairs: List[Tuple[int, int]],
     ontology: str,
-) -> int:
+) -> Tuple[int, int]:
+    """Returns (tp, eligible) where eligible = matched pairs where BOTH sides have a non-empty type."""
     tp = 0
+    eligible = 0
     for pi, gj in pairs:
         if 0 <= pi < len(pred_objs) and 0 <= gj < len(gold_objs):
-            if _type_matches(_entity_pred_type(pred_objs[pi]), _entity_gold_schema_type(gold_objs[gj], ontology)):
-                tp += 1
-    return tp
+            pred_norm = _normalize_type_label(_entity_pred_type(pred_objs[pi]))
+            gold_norm = _normalize_type_label(_entity_gold_schema_type(gold_objs[gj], ontology))
+            if pred_norm and gold_norm:
+                eligible += 1
+                if pred_norm == gold_norm:
+                    tp += 1
+    return tp, eligible
 
 
 def _gold_entity_type_display(obj: dict, ontology: str) -> str:
@@ -325,13 +331,13 @@ async def hitl_match_entities(
 
     matrix   = emb.score_matrix(preds, golds)
     emb_tp, _emb_matched = emb.greedy_match(matrix)
-    emb_type_tp = _count_entity_type_tp(
+    emb_type_tp, emb_type_n = _count_entity_type_stats(
         pred_objs, gold_objs, [(pi, gj) for pi, gj, _ in _emb_matched], ontology
     )
 
     llm_pairs   = await _llm_batch_match_entities(preds, golds, llm)
     llm_tp      = _count_llm_tp(llm_pairs, len(preds), len(golds))
-    llm_type_tp = _count_entity_type_tp(pred_objs, gold_objs, llm_pairs, ontology)
+    llm_type_tp, llm_type_n = _count_entity_type_stats(pred_objs, gold_objs, llm_pairs, ontology)
     llm_match_set = {
         (pi, gj) for pi, gj in llm_pairs
         if 0 <= pi < len(preds) and 0 <= gj < len(golds)
@@ -361,11 +367,12 @@ async def hitl_match_entities(
         print(f"    {j+1:3d}. {g}")
     print()
 
-    used_g:    set  = set()
-    human_tp:  int  = 0
+    used_g:       set  = set()
+    human_tp:     int  = 0
     human_type_tp: int = 0
-    match_log: list = []
-    auto_rest: bool = False
+    human_type_n:  int = 0
+    match_log:    list = []
+    auto_rest:    bool = False
 
     for idx, (pi, gj, emb_sc) in enumerate(low_cands):
         if gj in used_g:
@@ -429,8 +436,12 @@ async def hitl_match_entities(
         if is_match:
             human_tp += 1
             used_g.add(gj)
-            if _type_matches(pred_type, gold_schema_type):
-                human_type_tp += 1
+            pred_norm = _normalize_type_label(pred_type)
+            gold_norm = _normalize_type_label(gold_schema_type)
+            if pred_norm and gold_norm:
+                human_type_n += 1
+                if pred_norm == gold_norm:
+                    human_type_tp += 1
 
         match_log.append({
             "pred":      preds[pi],
@@ -457,6 +468,9 @@ async def hitl_match_entities(
         "emb_type_tp": emb_type_tp,
         "llm_type_tp": llm_type_tp,
         "human_type_tp": human_type_tp,
+        "emb_type_n": emb_type_n,
+        "llm_type_n": llm_type_n,
+        "human_type_n": human_type_n,
         "match_log": match_log,
     }
 
@@ -523,9 +537,9 @@ async def evaluate_sample(
             "emb":       _prf(counts["emb_tp"],       len(preds), len(golds)),
             "llm":       _prf(counts["llm_tp"],       len(preds), len(golds)),
             "human":     _prf(counts["human_tp"],     len(preds), len(golds)),
-            "emb_type":  _prf(counts["emb_type_tp"],  len(preds), len(golds)),
-            "llm_type":  _prf(counts["llm_type_tp"],  len(preds), len(golds)),
-            "human_type": _prf(counts["human_type_tp"], len(preds), len(golds)),
+            "emb_type":  _prf(counts["emb_type_tp"],  counts["emb_type_n"],   counts["emb_type_n"]),
+            "llm_type":  _prf(counts["llm_type_tp"],  counts["llm_type_n"],   counts["llm_type_n"]),
+            "human_type": _prf(counts["human_type_tp"], counts["human_type_n"], counts["human_type_n"]),
             "match_log": log,
         }
     else:
@@ -533,10 +547,10 @@ async def evaluate_sample(
         emb_tp, emb_matches = emb.greedy_match(matrix)
         llm_pairs = await _llm_batch_match_entities(preds, golds, llm)
         llm_tp    = _count_llm_tp(llm_pairs, len(preds), len(golds))
-        emb_type_tp = _count_entity_type_tp(
+        emb_type_tp, emb_type_n = _count_entity_type_stats(
             pred_objs, gold_objs, [(p, g) for p, g, _ in emb_matches], ontology
         )
-        llm_type_tp = _count_entity_type_tp(pred_objs, gold_objs, llm_pairs, ontology)
+        llm_type_tp, llm_type_n = _count_entity_type_stats(pred_objs, gold_objs, llm_pairs, ontology)
 
         # Build detailed match log for JSON output
         match_log = []
@@ -592,8 +606,8 @@ async def evaluate_sample(
             "missed_gold_type": missed_type,
             "emb": _prf(emb_tp, len(preds), len(golds)),
             "llm": _prf(llm_tp, len(preds), len(golds)),
-            "emb_type": _prf(emb_type_tp, len(preds), len(golds)),
-            "llm_type": _prf(llm_type_tp, len(preds), len(golds)),
+            "emb_type": _prf(emb_type_tp, emb_type_n, emb_type_n),
+            "llm_type": _prf(llm_type_tp, llm_type_n, llm_type_n),
             "match_log": match_log
         }
 

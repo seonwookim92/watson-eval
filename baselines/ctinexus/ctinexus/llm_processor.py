@@ -37,9 +37,9 @@ def get_litellm_endpoint_overrides(default_api_base: str = None) -> dict:
 	"""Resolve LiteLLM endpoint overrides from environment variables."""
 	global _CUSTOM_ENDPOINT_LOGGED
 
-	custom_base_url = (os.getenv("CUSTOM_BASE_URL") or "").strip()
+	custom_base_url = (os.getenv("CUSTOM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "").strip()
 	if custom_base_url:
-		custom_api_key = os.getenv("CUSTOM_API_KEY")
+		custom_api_key = os.getenv("CUSTOM_API_KEY") or os.getenv("OPENAI_API_KEY")
 		if not _CUSTOM_ENDPOINT_LOGGED:
 			logger.info("Using custom LLM endpoint: %s", custom_base_url)
 			_CUSTOM_ENDPOINT_LOGGED = True

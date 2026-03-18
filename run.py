@@ -78,7 +78,7 @@ def _llm_tag() -> str:
 def _llm_short(model_name: str) -> str:
     """Return a filename-safe LLM model identifier for a given model."""
     if model_name == "watson-new":
-        return _safe(_e("WATSON_NEW_LLM_MODEL", "unknown"))
+        return _safe(_e("WATSON_NEW_LLM_MODEL") or _e("OPENAI_MODEL", "unknown"))
     provider = _e("LLM_PROVIDER", "openai")
     if provider == "openai":
         llm = _e("OPENAI_MODEL", "gpt-4o")

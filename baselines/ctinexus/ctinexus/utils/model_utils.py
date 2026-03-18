@@ -7,7 +7,7 @@ EMBEDDING_MODELS = {}
 
 def check_api_key() -> bool:
 	"""Define Models and check if API KEYS are set"""
-	custom_base_url = (os.getenv("CUSTOM_BASE_URL") or "").strip()
+	custom_base_url = (os.getenv("CUSTOM_BASE_URL") or os.getenv("OPENAI_BASE_URL") or "").strip()
 
 	if os.getenv("OPENAI_API_KEY") or custom_base_url:
 		MODELS["OpenAI"] = {

@@ -105,7 +105,7 @@ setup_ttpdrill() {
     local PIP="$VENV/bin/pip"
     local PY="$VENV/bin/python"
     "$PIP" install --upgrade pip -q
-    "$PIP" install spacy rank-bm25 tqdm pandas python-dotenv nltk
+    "$PIP" install spacy rank-bm25 tqdm pandas python-dotenv nltk beautifulsoup4
 
     # Download spacy English model (needed for dependency parsing)
     if "$PY" -c "import spacy; spacy.load('en_core_web_sm')" 2>/dev/null; then

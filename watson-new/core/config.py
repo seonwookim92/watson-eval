@@ -29,8 +29,8 @@ def default_config() -> Dict[str, Any]:
     env = _load_env()
     return {
         "llm": {
-            "base_url": _e(env, "WATSON_NEW_LLM_BASE_URL", "http://127.0.0.1:8081/v1"),
-            "model":    _e(env, "WATSON_NEW_LLM_MODEL", "qwen3.5-35b"),
+            "base_url": _e(env, "WATSON_NEW_LLM_BASE_URL") or _e(env, "OPENAI_BASE_URL", "http://127.0.0.1:8081/v1"),
+            "model":    _e(env, "WATSON_NEW_LLM_MODEL") or _e(env, "OPENAI_MODEL", "qwen3.5-35b"),
             "max_tokens": 4096,
             "thinking": _e(env, "WATSON_NEW_LLM_THINKING", "false").strip().lower() == "true",
         },
