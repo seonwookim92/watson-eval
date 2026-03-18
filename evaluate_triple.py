@@ -477,6 +477,7 @@ async def _llm_batch_match_triples(
             (int(d["pred"]) - 1, int(d["gold"]) - 1)
             for d in json.loads(m.group(0))
             if "pred" in d and "gold" in d
+            and d["pred"] is not None and d["gold"] is not None
         ]
         # Deduplicate: each gold at most once (first occurrence wins)
         used_g: set = set()
@@ -723,6 +724,21 @@ def _print_report(
     _print_type_report(results, llm_tag)
 
 
+# ── Filename key helper ───────────────────────────────────────────────────────
+
+def _results_key(filepath: Path) -> str:
+    """Extract '{model}_{schema}_{llm}' prefix from a results filename.
+
+    New format: {model}_{schema}_{llm}_{eval_mode}_{10-digit-ts}_results.json
+    Old format: {model}_{schema}_results.json
+    """
+    stem = filepath.stem
+    if stem.endswith("_results"):
+        stem = stem[:-8]
+    m = re.match(r'^(.+)_[a-z]+_\d{10}$', stem)
+    return m.group(1) if m else stem
+
+
 # ── CLI ───────────────────────────────────────────────────────────────────────
 
 async def main() -> None:
@@ -731,7 +747,8 @@ async def main() -> None:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=__doc__,
     )
-    parser.add_argument("--results",          required=True, help="Model output JSON (list format)")
+    parser.add_argument("--results",          required=True,
+                        help="Model output JSON file, or directory of *_results.json files")
     parser.add_argument("--ground-truth",     required=True, help="GT annotation directory")
     parser.add_argument("--include-implicit", action="store_true",
                         help="Also include implicit_triplets in gold")
@@ -748,7 +765,7 @@ async def main() -> None:
     parser.add_argument("--limit",            type=int, default=None,
                         help="Max samples to evaluate (default: all)")
     parser.add_argument("--output",           default=None,
-                        help="Save detailed per-sample metrics to JSON")
+                        help="Output JSON file (single mode) or output directory (directory mode)")
     args = parser.parse_args()
 
     from core.config import config
@@ -757,7 +774,24 @@ async def main() -> None:
     llm_base_url = args.llm_base_url or config.EVAL_LLM_BASE_URL
     llm_tag      = f"{llm_provider}/{llm_model}"
 
-    print(f"[*] Results      : {args.results}")
+    # ── Resolve input files and output paths ──────────────────────────────────
+    results_path = Path(args.results)
+    if results_path.is_dir():
+        input_files = sorted(results_path.glob("*_results.json"))
+        if not input_files:
+            raise ValueError(f"No *_results.json files found in: {results_path}")
+        out_dir = Path(args.output) if args.output else results_path
+        out_dir.mkdir(parents=True, exist_ok=True)
+        file_jobs: List[tuple] = [
+            (f, out_dir / f"eval_triple_{_results_key(f)}.json")
+            for f in input_files
+        ]
+        print(f"[*] Results dir  : {results_path}  ({len(input_files)} files)")
+        print(f"[*] Output dir   : {out_dir}")
+    else:
+        file_jobs = [(results_path, Path(args.output) if args.output else None)]
+        print(f"[*] Results      : {args.results}")
+
     print(f"[*] Ground truth : {args.ground_truth}")
     print(f"[*] Gold scope   : {'explicit + implicit' if args.include_implicit else 'explicit only'}")
     print(f"[*] Emb threshold: {args.emb_threshold}")
@@ -767,94 +801,111 @@ async def main() -> None:
     if llm_base_url:
         print(f"[*] LLM endpoint : {llm_base_url}")
     print(f"[*] Modes        : SOFT (S+O)  +  FULL (S+R+O)")
-
-    with open(args.results, encoding="utf-8") as f:
-        extracted = json.load(f)
-    if not isinstance(extracted, list):
-        raise ValueError("Results file must be a JSON list.")
-
-    gt_map = _load_gt_with_implicit(args.ground_truth)
-
-    jac = JaccardMatcher(threshold=args.jac_threshold)
-    emb = EmbeddingMatcher(threshold=args.emb_threshold)
-    llm = _build_llm(llm_provider, llm_model, llm_base_url)
-
     if args.limit:
-        extracted = extracted[:args.limit]
+        print(f"[*] Limit        : {args.limit} samples per file")
 
-    results:  List[dict] = []
-    skipped = 0
+    # ── Shared resources (loaded once) ────────────────────────────────────────
+    gt_map = _load_gt_with_implicit(args.ground_truth)
+    jac    = JaccardMatcher(threshold=args.jac_threshold)
+    emb    = EmbeddingMatcher(threshold=args.emb_threshold)
+    llm    = _build_llm(llm_provider, llm_model, llm_base_url)
 
-    for i, item in enumerate(extracted):
-        if "error" in item:
-            skipped += 1
+    # ── Process each results file ─────────────────────────────────────────────
+    for file_idx, (results_file, output_path) in enumerate(file_jobs):
+        if len(file_jobs) > 1:
+            key = _results_key(results_file)
+            print(f"\n{'━'*60}")
+            print(f"  [{file_idx+1}/{len(file_jobs)}] {results_file.name}")
+            print(f"  key : {key}")
+            print(f"  out : {output_path.name if output_path else '(none)'}")
+            print(f"{'━'*60}")
+
+        with open(results_file, encoding="utf-8") as f:
+            extracted = json.load(f)
+        if not isinstance(extracted, list):
+            print(f"[!] Skipping {results_file.name}: not a JSON list")
             continue
-        file_id = Path(item.get("file", "")).stem
-        gt = gt_map.get(file_id)
-        if not gt:
-            skipped += 1
+
+        items = extracted[:args.limit] if args.limit else extracted
+
+        results:  List[dict] = []
+        skipped = 0
+
+        for i, item in enumerate(items):
+            if "error" in item:
+                skipped += 1
+                continue
+            file_id = Path(item.get("file", "")).stem
+            gt = gt_map.get(file_id)
+            if not gt:
+                skipped += 1
+                continue
+
+            print(f"\n[{i+1}/{len(items)}] {file_id}", flush=True)
+            result = await evaluate_sample(
+                item, gt, jac, emb, llm, args.include_implicit, args.ontology
+            )
+            results.append(result)
+
+            expl = f"  gold={result['n_gold_explicit']} explicit"
+            if args.include_implicit:
+                expl += f"+{result['n_gold_implicit']} implicit"
+            print(f"  pred={result['n_pred']}  {expl}")
+
+            s  = result["soft"]
+            f_ = result["full"]
+            th = result["type_hier"]
+            print(
+                f"  SOFT  JAC F1={s['jaccard']['f1']:.3f}  "
+                f"EMB F1={s['emb']['f1']:.3f}  "
+                f"LLM F1={s['llm']['f1']:.3f}"
+            )
+            print(
+                f"  FULL  JAC F1={f_['jaccard']['f1']:.3f}  "
+                f"EMB F1={f_['emb']['f1']:.3f}  "
+                f"LLM F1={f_['llm']['f1']:.3f}  "
+                f"│  TYPE(hier) Acc={th['f1']:.3f} "
+                f"[Score={th['tp']:.1f}/{th['predicted']} eligible]"
+            )
+
+        if skipped:
+            print(f"\n[!] Skipped {skipped} samples (no matching GT or extraction error)")
+
+        if not results:
+            print("[!] No results to report.")
             continue
 
-        print(f"\n[{i+1}/{len(extracted)}] {file_id}", flush=True)
-        result = await evaluate_sample(
-            item, gt, jac, emb, llm, args.include_implicit, args.ontology
-        )
-        results.append(result)
+        _print_report(results, args.jac_threshold, args.emb_threshold, llm_tag, args.include_implicit)
 
-        expl = f"  gold={result['n_gold_explicit']} explicit"
-        if args.include_implicit:
-            expl += f"+{result['n_gold_implicit']} implicit"
-        print(f"  pred={result['n_pred']}  {expl}")
-
-        s  = result["soft"]
-        f_ = result["full"]
-        th = result["type_hier"]
-        print(
-            f"  SOFT  JAC F1={s['jaccard']['f1']:.3f}  "
-            f"EMB F1={s['emb']['f1']:.3f}  "
-            f"LLM F1={s['llm']['f1']:.3f}"
-        )
-        print(
-            f"  FULL  JAC F1={f_['jaccard']['f1']:.3f}  "
-            f"EMB F1={f_['emb']['f1']:.3f}  "
-            f"LLM F1={f_['llm']['f1']:.3f}  "
-            f"│  TYPE(hier) Acc={th['f1']:.3f} "
-            f"[Score={th['tp']:.1f}/{th['predicted']} eligible]"
-        )
-
-    if skipped:
-        print(f"\n[!] Skipped {skipped} samples (no matching GT or extraction error)")
-
-    _print_report(results, args.jac_threshold, args.emb_threshold, llm_tag, args.include_implicit)
-
-    if args.output:
-        out = {
-            "task":             "triple_extraction",
-            "results_file":     args.results,
-            "ground_truth":     args.ground_truth,
-            "include_implicit": args.include_implicit,
-            "emb_threshold":    args.emb_threshold,
-            "jac_threshold":    args.jac_threshold,
-            "ontology":         args.ontology or "auto",
-            "llm":              llm_tag,
-            "num_samples":      len(results),
-            "skipped":          skipped,
-            "soft": {
-                "jaccard":   _aggregate([r["soft"]["jaccard"] for r in results]),
-                "embedding": _aggregate([r["soft"]["emb"]     for r in results]),
-                "llm_judge": _aggregate([r["soft"]["llm"]     for r in results]),
-            },
-            "full": {
-                "jaccard":   _aggregate([r["full"]["jaccard"] for r in results]),
-                "embedding": _aggregate([r["full"]["emb"]     for r in results]),
-                "llm_judge": _aggregate([r["full"]["llm"]     for r in results]),
-            },
-            "type_hier": _aggregate([r["type_hier"] for r in results]),
-            "samples":    results,
-        }
-        with open(args.output, "w", encoding="utf-8") as f:
-            json.dump(out, f, indent=2, ensure_ascii=False)
-        print(f"\n[+] Detailed metrics → {args.output}")
+        if output_path:
+            out = {
+                "task":             "triple_extraction",
+                "results_file":     str(results_file),
+                "results_key":      _results_key(results_file),
+                "ground_truth":     args.ground_truth,
+                "include_implicit": args.include_implicit,
+                "emb_threshold":    args.emb_threshold,
+                "jac_threshold":    args.jac_threshold,
+                "ontology":         args.ontology or "auto",
+                "llm":              llm_tag,
+                "num_samples":      len(results),
+                "skipped":          skipped,
+                "soft": {
+                    "jaccard":   _aggregate([r["soft"]["jaccard"] for r in results]),
+                    "embedding": _aggregate([r["soft"]["emb"]     for r in results]),
+                    "llm_judge": _aggregate([r["soft"]["llm"]     for r in results]),
+                },
+                "full": {
+                    "jaccard":   _aggregate([r["full"]["jaccard"] for r in results]),
+                    "embedding": _aggregate([r["full"]["emb"]     for r in results]),
+                    "llm_judge": _aggregate([r["full"]["llm"]     for r in results]),
+                },
+                "type_hier": _aggregate([r["type_hier"] for r in results]),
+                "samples":    results,
+            }
+            with open(output_path, "w", encoding="utf-8") as f:
+                json.dump(out, f, indent=2, ensure_ascii=False)
+            print(f"\n[+] Saved → {output_path}")
 
 
 if __name__ == "__main__":
