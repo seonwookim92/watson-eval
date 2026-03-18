@@ -49,8 +49,8 @@ def run_evaluation(ontology_mode="uco", limit=None):
         bm25_match.create_ontology_bm_model(file_name=ont_file)
 
     dataset_path = Path(DATASET_DIR)
-    files = sorted(dataset_path.glob("*.json"))
-    
+    files = [f for f in sorted(dataset_path.glob("*.json")) if not f.stem.endswith("_typed")]
+
     if limit:
         files = files[:limit]
     

@@ -118,8 +118,8 @@ def main():
         os.makedirs(OUTPUT_DIR)
         
     dataset_path = Path(DATASET_DIR)
-    files = sorted(dataset_path.glob("*.json"))
-    
+    files = [f for f in sorted(dataset_path.glob("*.json")) if not f.stem.endswith("_typed")]
+
     limit = int(sys.argv[1]) if len(sys.argv) > 1 else 0
     if limit > 0:
         files = files[:limit]
