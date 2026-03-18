@@ -689,7 +689,7 @@ def entity_pre_classification_prompt(entity: str, context: str) -> str:
         If these conflict, trust the stronger evidence first.
 
         Examples (entity → concept label):
-        - "Predator spyware"                      → "malware spyware"
+        - "Predator spyware"                      → "malicious tool malware"
         - "Apple Inc."                            → "organization company"
         - "CVE-2023-41991"                        → "vulnerability CVE identifier"
         - "iOS 16.7"                              → "operating system software"
@@ -697,11 +697,31 @@ def entity_pre_classification_prompt(entity: str, context: str) -> str:
         - "Google's Threat Analysis Group (TAG)"  → "organization security team"
         - "exploit chain"                         → "attack pattern exploit"
         - "phishing email"                        → "attack pattern phishing message"
+        - "phishing tactics"                      → "attack pattern technique"
         - "registry key"                          → "file system registry artifact"
         - "SHA256 hash"                           → "file hash indicator"
-        - "Cobalt Strike"                         → "malware tool"
+        - "Cobalt Strike"                         → "malicious tool"
+        - "3AM ransomware"                        → "malicious tool ransomware"
+        - "Cuba ransomware"                       → "malicious tool ransomware"
+        - "LockBit"                               → "malicious tool ransomware"
         - "Microsoft Exchange"                    → "software application"
         - "threat actor group"                    → "threat actor group"
+        - "North Korea"                           → "geographic location country"
+        - "Israel"                                → "geographic location country"
+        - "healthcare sector"                     → "organization industry"
+        - "finance industry"                      → "organization industry"
+        - "Qualcomm"                              → "organization company"
+        - "personally identifiable information"   → "content data sensitive"
+
+        Additional guidance for common mistakes:
+        - Country or region names (North Korea, Iran, Russia, etc.) → "geographic location country"
+          Do NOT classify countries as Facets or Identity attributes.
+        - Industry sector names (healthcare, finance, manufacturing, education) → "organization industry"
+          These are victim sector labels, NOT targeting-behavior concepts.
+        - Malware/ransomware family names, even unfamiliar ones → "malicious tool malware"
+          If the context uses words like ransomware, backdoor, RAT, spyware, implant → "malicious tool"
+        - Attack methods/techniques (phishing, call-back, spear-phishing) → "attack pattern technique"
+          These are behaviors, not victim-targeting concepts.
 
         Return JSON only:
         {{
@@ -721,12 +741,17 @@ def type_match_select_prompt(entity: str, context: str, candidates: List[Dict[st
     ) if candidates else "(no candidates found)"
     return textwrap.dedent(
         f"""
-        You are an ontology expert. Given the entity below, find the most specific
+        You are an ontology expert. Given the entity below, find the most accurate
         class in the ontology that best describes it.
 
-        IMPORTANT: Choose the most specific (leaf-level) class that still accurately
-        describes the entity. Do NOT select a broader parent class if a more specific
-        subclass is a better fit.
+        Specificity rule: Prefer specific classes over generic parents, BUT only when
+        the specific class accurately describes the entity's fundamental nature.
+        Do NOT pick a subclass merely because it mentions related concepts.
+          WRONG: Qualcomm → WearableDevice  (Qualcomm is the company, not its product)
+          RIGHT: Qualcomm → Organization
+          WRONG: North Korea → CountryOfResidenceFacet  (that is a personal-identity attribute)
+          RIGHT: North Korea → Location or Place
+
         When evidence conflicts, use this priority order:
         1. Explicit definitional statements
         2. Appositive descriptions
@@ -734,6 +759,16 @@ def type_match_select_prompt(entity: str, context: str, candidates: List[Dict[st
         4. Relation-role clues from the local SPO
         Do not label an organization as a threat actor unless the context explicitly says
         the entity is the attacker rather than merely a vendor, reporter, or research team.
+
+        FORBIDDEN — never select these for entity typing:
+        - UCO Facet classes (names ending in "Facet", e.g. CountryOfResidenceFacet,
+          IdentifierFacet, LanguagesFacet). Facets are attribute-bundles attached to
+          Identity nodes, not entity types.
+        - VictimTargeting — this describes adversarial targeting behaviour, not the
+          entity being targeted. Industry sectors (healthcare, finance) and attack
+          techniques (phishing, call-back) must NOT use this class.
+        - Structural/meta-classes such as AttributedName, Grouping — these are
+          ontology-internal constructs, not entity types.
 
         Entity: {entity}
         Context: {context}
@@ -962,8 +997,24 @@ def class_resolution_agent_prompt(
         - If a candidate class seems plausible, inspect subclasses before finalizing.
         - If subclasses do not fit, you may return to a broader parent or explore a different branch.
         - Prefer the most specific accurate class, but if no specific subclass fits, return the best broader class.
+          IMPORTANT: "most specific" means most accurately describing the entity's nature — not just
+          any subclass that mentions a related concept. If a parent class is accurate and the subclass
+          would require over-interpretation, choose the parent.
+          WRONG: Qualcomm → WearableDevice  (Qualcomm is the company, not its chip-powered product)
+          RIGHT: Qualcomm → Organization
         - Only use these tools: search_classes, list_root_classes, list_subclasses, get_class_hierarchy, get_class_details, list_available_facets, drill_into_classes.
         - {finish_rule}
+
+        FORBIDDEN — never select these for entity typing:
+        - UCO Facet classes (names ending in "Facet", e.g. CountryOfResidenceFacet,
+          IdentifierFacet, LanguagesFacet). Facets are attribute-bundles attached to
+          Identity nodes, not entity types. For country/region names, search for
+          Location or Place instead.
+        - VictimTargeting — describes adversarial targeting behaviour, not the entity
+          being targeted. Industry sectors (healthcare, finance, manufacturing) and
+          attack technique names (phishing, call-back phishing) must NOT use this class.
+        - Structural/meta-classes such as AttributedName, Grouping — ontology-internal
+          constructs that must not be used as entity types.
 
         Tool argument schema:
         - search_classes: {{"query": "<text query>"}}
