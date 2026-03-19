@@ -458,7 +458,7 @@ def get_class_hierarchy(class_uri: str) -> str:
     return " -> ".join([engine.classes[u]['name'] for u in reversed(path) if u in engine.classes])
 
 @mcp.tool()
-def search_classes(query: str, limit: int = 5) -> str:
+def search_classes(query: str, limit: int = 8) -> str:
     """Search for classes using Hybrid Search (Keyword + Semantic Embeddings).
 
     IMPORTANT: Query must contain ONE concept only (e.g. "Vulnerability", "Organization", "Malware").

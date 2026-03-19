@@ -348,29 +348,138 @@ def paraphrase_stage4_verify_prompt(original: str, rewritten: str) -> str:
 def entity_extraction_prompt(chunk_name: str, document: str) -> str:
     return textwrap.dedent(
         f"""
-        You are a Cyber Threat Intelligence analyst preparing inputs for knowledge-graph extraction.
+        You are a Cyber Threat Intelligence (CTI) analyst preparing inputs for knowledge-graph extraction.
 
-        Read the document chunk below and extract the entities that are important for Cyber Threat Intelligence.
-        Focus on entities such as threat actors, malware, tools, campaigns, vulnerabilities, targets,
-        organizations, infrastructure, files, registries, and other concrete CTI-relevant entities.
+        Read the document chunk below and extract all entities important for CTI knowledge graph construction.
 
-        For each entity, provide:
-        - source_chunk: the exact chunk identifier "{chunk_name}"
-        - name: the entity name exactly as it appears in the document when possible
-        - description: one sentence explaining why the entity matters in this chunk
+        ENTITY TYPES to focus on:
+        - Threat actors / Attackers (APT groups, cybercriminals, nation-state actors)
+        - Malware (ransomware, trojans, backdoors, spyware, loaders, wipers, etc.)
+        - Vulnerabilities (CVEs, zero-days, weaknesses)
+        - Tools (exploitation tools, legitimate software used maliciously, scripts)
+        - Infrastructure (servers, domains, networks, cloud services, protocols)
+        - Organizations (companies, government agencies, research groups)
+        - Campaigns / Operations (coordinated attack campaigns)
+        - Indicators (files, URLs, IPs, hashes, registry keys, email artifacts)
+        - Credentials / Accounts
+        - Events (specific incidents, attacks, breaches with their target context)
+        - Time references (dates, time periods relevant to the incident)
+        - Locations (countries, regions, sectors)
+        - Capabilities / Behaviors (specific malware actions, attack techniques)
+        - Information / Data (stolen data descriptions, ransom amounts, victim counts)
+
+        SPAN SELECTION RULES (critical):
+        1. If a name includes a parenthetical acronym, keep it whole.
+           GOOD: "Google's Threat Analysis Group (TAG)"   BAD: "TAG" or "Google's Threat Analysis Group"
+        2. If a CVE is described with a qualifier, keep the full phrase when that is the primary reference.
+           GOOD: "zero-day vulnerability CVE-2023-51467"   ALSO OK: "CVE-2023-51467" if used alone
+        3. For event-type entities, include the target context in the name.
+           GOOD: "attack on Prospect Medical Holdings"   BAD: "attack" (too generic)
+           Also extract "Prospect Medical Holdings" as a separate Organization entity.
+        4. Do NOT merge two separate entities into one span.
+        5. Do NOT split a fixed compound name (e.g., "Black Basta" stays as-is).
+        6. Prefer the most complete, unambiguous surface form as the canonical name,
+           but stop at the natural noun phrase boundary — do NOT extend into modifier clauses.
+        7. Numbers, monetary amounts, and victim counts are valid entities when contextually meaningful.
+           GOOD: "$60 million", "49 organizations", "166 clinics and 17 hospitals"
+        8. Do NOT extend a core entity's span by absorbing a relative clause or prepositional phrase
+           that itself contains another distinct entity. Extract both separately instead.
+           GOOD: "security researchers" + "vulnerability research and development"
+           BAD:  "security researchers working on vulnerability research and development"
+           GOOD: "multiple services"
+           BAD:  "multiple services on the infected computer"
+        9. Include the article ("a", "an", "the") that is part of the entity's idiomatic name in
+           the text when the article is fixed (e.g., "a new campaign", "an in-the-wild 0-day exploit
+           chain"). For well-known proper nouns, omit the article (e.g., "LockBit", not "the LockBit").
+
+        MENTIONS (alternate surface forms):
+        - If the same entity appears under multiple names or abbreviations, pick the most complete as "name".
+        - List all other observed surface forms in the "mentions" array (may be empty []).
+        - GOOD: name="Google's Threat Analysis Group (TAG)", mentions=["TAG", "Google TAG"]
+        - GOOD: name="MuddyWater", mentions=["Iranian government-sponsored APT MuddyWater", "MERCURY"]
+
+        FEW-SHOT EXAMPLES:
+
+        Text: "Last week Google's Threat Analysis Group (TAG), in partnership with The Citizen Lab,
+        discovered an in-the-wild 0-day exploit chain for iPhones. Developed by Intellexa, this exploit
+        chain is used to install its Predator spyware. Apple patched the bugs as CVE-2023-41991,
+        CVE-2023-41992, CVE-2023-41993."
+        GOOD entities:
+          "Google's Threat Analysis Group (TAG)" [mentions: ["TAG"]]
+          "The Citizen Lab" [mentions: []]
+          "an in-the-wild 0-day exploit chain" [mentions: ["0-day exploit chain"]]
+          "iPhones" [mentions: []]
+          "Intellexa" [mentions: []]
+          "Predator spyware" [mentions: ["Predator"]]
+          "Apple" [mentions: []]
+          "CVE-2023-41991" [mentions: []]
+          "CVE-2023-41992" [mentions: []]
+          "CVE-2023-41993" [mentions: []]
+        BAD (do NOT): "Google" (vague), "TAG" (abbreviation only), "exploit chain" (lost qualifier),
+                      "spyware" (generic), "bugs" (generic)
+
+        Text: "Rhysida ransomware was used in an attack on Prospect Medical Holdings, affecting
+        166 clinics and 17 hospitals. The group also targeted the Chilean Army."
+        GOOD entities:
+          "Rhysida ransomware" [mentions: ["Rhysida"]]
+          "attack on Prospect Medical Holdings" [mentions: []]
+          "Prospect Medical Holdings" [mentions: []]
+          "166 clinics and 17 hospitals" [mentions: []]
+          "Chilean Army" [mentions: []]
+          "attack on the Chilean Army" [mentions: []]
+        BAD (do NOT): "Rhysida" alone, "attack" alone, "hospitals" (too generic)
+
+        Text: "Google's Threat Analysis Group (TAG) has observed a new campaign from government-backed
+        actors in North Korea targeting security researchers working on vulnerability research and
+        development. The threat actor has been using social networking sites to build rapport."
+        GOOD entities:
+          "Google's Threat Analysis Group (TAG)" [mentions: ["TAG"]]
+          "a new campaign" [mentions: []]
+          "government-backed actors in North Korea" [mentions: []]
+          "North Korea" [mentions: []]
+          "security researchers" [mentions: []]
+          "vulnerability research and development" [mentions: []]
+          "threat actor" [mentions: []]
+          "social networking sites" [mentions: []]
+        BAD (do NOT):
+          "security researchers working on vulnerability research and development"
+            → over-merged: extract "security researchers" and "vulnerability research and
+              development" as SEPARATE entities (Rule 8)
+          "new campaign" → article is part of name; "a new campaign" is correct (Rule 9)
+          "actors" → too vague; use full phrase "government-backed actors in North Korea"
+
+        DEDUPLICATION: If the same entity is extractable under both a specific event phrase
+        ("attack on X") and as a bare actor ("X"), extract BOTH as separate entities.
+
+        For each entity provide:
+        - source_chunk: "{chunk_name}"
+        - name: canonical entity name (most complete, unambiguous form from the text)
+        - description: one factual sentence that (1) states the CATEGORY of this entity
+          (e.g., ransomware family, nation-state threat actor, CVE vulnerability,
+          cloud service provider, exploit tool, IP address indicator, etc.) and
+          (2) describes its specific role in this incident.
+          BAD: "A group that conducted the attack."
+          GOOD: "A nation-state threat actor group from North Korea that targeted security researchers."
+          BAD: "Software involved in the incident."
+          GOOD: "A ransomware family written in Rust that encrypts files and deletes volume shadow copies."
+        - mentions: list of other surface forms for this entity found in the text ([] if none)
 
         Rules:
-        - Extract only entities that are important for CTI understanding.
-        - Do not extract pronouns, vague references, or generic terms with no concrete referent.
-        - Keep descriptions factual, concise, and grounded in the document.
+        - Do not extract bare pronouns or vague references (e.g., "it", "they", "the group" with
+          no referent). DO extract short category-level terms when they function as meaningful
+          participants in CTI events (e.g., "ransomware", "threat actor", "north korea",
+          "files", "multiple services").
+        - Do not extract the same canonical entity twice.
         - If no relevant entities exist, return an empty list.
-        - Return JSON only in the following format:
+
+        Return JSON only:
         {{
           "entities": [
             {{
               "source_chunk": "{chunk_name}",
               "name": "Entity Name",
-              "description": "One-sentence description."
+              "description": "One-sentence description stating category and incident role.",
+              "mentions": ["alt form 1", "alt form 2"]
             }}
           ]
         }}
@@ -440,44 +549,50 @@ def triplet_prompt(
     sentence_entities: List[Dict[str, str]],
 ) -> str:
     chunk_entities_text = "\n".join(
-        f'- {item["name"]}: {item["description"]}' for item in chunk_entities
-    ) if chunk_entities else "(no chunk-level entity inventory)"
+        f'- "{item["name"]}": {item["description"]}' for item in chunk_entities
+    ) if chunk_entities else "(no entity inventory for this chunk)"
     sentence_entities_text = "\n".join(
-        f'- {item["name"]}: {item["description"]}' for item in sentence_entities
-    ) if sentence_entities else "(no entity matched directly from the sentence)"
+        f'- "{item["name"]}": {item["description"]}' for item in sentence_entities
+    ) if sentence_entities else "(none matched directly in this sentence)"
     return textwrap.dedent(
         f"""
         You are a Knowledge Graph construction expert specializing in CTI (Cyber Threat Intelligence).
 
-        Given the context paragraph and the target sentence, extract all Subject-Predicate-Object
-        (SPO) triplets that represent factual relationships relevant to cybersecurity.
+        Given the context paragraph and the target sentence, extract all Subject-Predicate-Object (SPO) triplets.
 
-        Rules:
-        - Extract ONLY from the Target Sentence - use Context paragraph solely to resolve ambiguous references (e.g., pronouns, 'the group', 'the malware', 'the campaign')
-        - First identify the atomic factual statements explicitly present in the target sentence, then convert them into triplets.
-        - Subject and Object must be named entities or specific technical terms (not pronouns).
-        - Extract all explicit relations in the sentence, including aggregate, category, member, and example relations when they are directly supported.
-        - Preserve the semantic structure of the sentence. Do not compress a multi-step relation into a shorter paraphrased relation.
-        - Keep intermediate concepts if they are explicitly stated in the sentence or are required to preserve the original relation structure.
-        - Use the entity inventory below as optional grounding context, not as a hard constraint.
-        - If the sentence contains a valid CTI subject or object that is not in the inventory, extract it anyway.
-        - If a subject or object is only a partial span of a listed entity, expand it to the full entity name when that preserves the original meaning.
-        - Use subject and object spans from the sentence as faithfully as possible. Prefer the most specific valid span that still preserves the sentence meaning.
+        ENTITY GROUNDING RULES (strictly enforced):
+        - The Subject MUST be an entity from the Entity Inventory below. Use the exact canonical name as listed (quoted names).
+        - The Object follows one of two patterns:
+          (A) ObjectProperty — the Object is also an entity from the Entity Inventory: use its exact canonical name.
+          (B) DataTypeProperty — the Object is a literal value (a date, a count, a monetary amount,
+              a version string, a file extension, etc.) that is NOT itself an entity in the inventory.
+        - If the sentence uses an alternate name or abbreviation for an entity in the inventory,
+          still use the canonical name from the inventory.
+          Example: sentence says "TAG discovered..." and inventory has "Google's Threat Analysis Group (TAG)"
+                   → subject should be "Google's Threat Analysis Group (TAG)"
+        - If a potential object matches or refers to an entity in the inventory, ALWAYS use the
+          entity form (pattern A) — never treat it as a string literal (pattern B).
+        - If neither subject nor object can be grounded to the entity inventory, skip the triplet.
+        - Do NOT introduce entity names that are paraphrases or partial spans of inventory entries.
+
+        EXTRACTION RULES:
+        - Extract ONLY from the Target Sentence — use Context paragraph solely to resolve pronouns
+          and ambiguous references (e.g., "the group", "the malware", "the campaign").
+        - Extract all explicit factual relationships present in the target sentence.
         - Predicate must be a concise verb phrase describing the relationship.
-        - Extract only factual, objective relationships. Omit opinions or speculation.
-        - Prefer the original wording of the relation when possible. Do not replace a relation with a looser summary if the sentence states a more specific one.
-        - When a sentence expresses a category followed by enumerated members or identifiers, extract the category-to-member relations explicitly.
-        - When a sentence contains patterns such as "X including Y" or "X such as Y", preserve that structure. Prefer the instance span Y for the instance-level relation, and do not keep "X such as Y" as one merged entity span unless it is a fixed name.
-        - Do NOT extract meta-statements about the report itself (e.g., 'report describes', 'section discusses', 'authors note').
-        - Do NOT extract from figure descriptions, image descriptions, captions, legends, or visual-layout explanations.
-        - Do NOT extract from appendix entries, sample tables, JSON-like rows, metadata blocks, or list-like inventory records.
-        - Do NOT extract from corrupted OCR fragments, truncated strings, malformed values, or obviously broken sentences.
-        - Do NOT extract if the sentence contains unresolved context-dependent references such as "this server", "this image", "the above", "the following", "it", or "they" and the exact referent cannot be resolved with high confidence from the context paragraph.
-        - If the target sentence is too short or contains no extractable CTI relationships, return {{"triplets": []}}.
-        - Return JSON in the following format:
+        - Preserve the semantic structure; do not compress multi-step relations.
+        - Extract only factual, objective relationships; omit opinions or speculation.
+        - When a sentence lists category members or examples, extract each as a separate triplet.
+        - Do NOT extract meta-statements about the report itself.
+        - Do NOT extract from figure descriptions, appendix tables, or corrupted OCR fragments.
+        - Do NOT extract if the sentence contains unresolved pronouns ("it", "they", "this") that
+          cannot be confidently resolved from context.
+        - If the sentence has no extractable CTI relationships, return {{"triplets": []}}.
+
+        Return JSON only:
         {{
           "triplets": [
-            {{"subject": "...", "predicate": "...", "object": "..."}},
+            {{"subject": "<exact canonical name from inventory>", "predicate": "...", "object": "<exact canonical name OR literal value>"}},
             ...
           ]
         }}
@@ -485,7 +600,7 @@ def triplet_prompt(
         Context paragraph:
         {chunk}
 
-        Chunk-level entity inventory:
+        Chunk-level entity inventory (use these exact canonical names for subject and object):
         {chunk_entities_text}
 
         Entities matched in the target sentence:
@@ -493,6 +608,56 @@ def triplet_prompt(
 
         Target sentence:
         {sentence}
+        """
+    ).strip()
+
+
+def implicit_triplet_prompt(
+    document: str,
+    entities: List[Dict[str, str]],
+    explicit_triplets: List[Dict[str, str]],
+) -> str:
+    entities_text = "\n".join(
+        f'- [{i}] "{e["name"]}": {e["description"]}' for i, e in enumerate(entities)
+    ) if entities else "(no entities)"
+    explicit_text = "\n".join(
+        f'- {t["subject"]} | {t["predicate"]} | {t["object"]}' for t in explicit_triplets
+    ) if explicit_triplets else "(none)"
+    return textwrap.dedent(
+        f"""
+        You are a Cyber Threat Intelligence analyst building a knowledge graph.
+
+        You have already extracted explicit triplets from the text. Now identify IMPLICIT triplets —
+        relationships that are strongly implied by the text but not directly stated as a fact.
+
+        Implicit triplets capture:
+        - Causal relationships (X led to Y, X enabled Y)
+        - Operational roles not directly stated (X operates Y, X controls Y)
+        - Inferred ownership or associations (X is infrastructure of Y)
+
+        Rules:
+        - Both subject AND object MUST be entities from the Entity List (use exact canonical names).
+        - Do NOT duplicate already-extracted explicit triplets.
+        - Only extract relationships with strong textual evidence — be conservative.
+        - Skip anything speculative or weakly implied.
+        - If no reliable implicit relationships exist, return an empty list.
+        - Maximum 3 implicit triplets.
+
+        Return JSON only:
+        {{
+          "implicit_triplets": [
+            {{"subject": "<canonical entity name>", "relation": "...", "object": "<canonical entity name>"}}
+          ]
+        }}
+
+        Document text:
+        {document}
+
+        Entity list:
+        {entities_text}
+
+        Already-extracted explicit triplets (do not duplicate):
+        {explicit_text}
         """
     ).strip()
 

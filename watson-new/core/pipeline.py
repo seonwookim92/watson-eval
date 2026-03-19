@@ -39,6 +39,7 @@ from .prompts import (
     entity_inventory_from_triplets_prompt,
     entity_pre_classification_prompt,
     entity_resolution_prompt,
+    implicit_triplet_prompt,
     ioc_prompt,
     object_property_resolution_agent_prompt,
     paraphrase_stage1_prompt,
@@ -296,7 +297,12 @@ class OntologyExtractorPipeline:
         self.entities: List[Dict[str, str]] = []
         self.entities_by_chunk: Dict[str, List[Dict[str, str]]] = {}
         self.entity_memory: Dict[str, Dict[str, Any]] = {}
+        # mention→canonical lookup: normalized mention text -> canonical entity name
+        self._mention_to_canonical: Dict[str, str] = {}
+        # entity canonical name -> (is_ioc, ioc_type)
+        self._entity_ioc_map: Dict[str, Tuple[bool, str]] = {}
         self.triplets: List[Dict[str, Any]] = []
+        self.implicit_triplets: List[Dict[str, Any]] = []
         self.all_typed_triplets: List[Dict[str, Any]] = []
         self.typed_triplets: List[Dict[str, Any]] = []
         self.mcp_call_count: Dict[str, int] = {"type_matching": 0, "property_matching": 0}
@@ -354,10 +360,17 @@ class OntologyExtractorPipeline:
             return text
         return f"{text[:limit]}... [truncated {len(text) - limit} chars]"
 
+    @staticmethod
+    def _json_default(obj: Any) -> Any:
+        """JSON serializer fallback: converts set → sorted list to avoid TypeError."""
+        if isinstance(obj, set):
+            return sorted(obj)
+        raise TypeError(f"Object of type {type(obj).__name__} is not JSON serializable")
+
     def _write_json(self, path: Path, payload: Any) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         with path.open("w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
+            json.dump(payload, f, ensure_ascii=False, indent=2, default=self._json_default)
 
     def _append_jsonl(self, path: Path, payload: Dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1022,10 +1035,19 @@ class OntologyExtractorPipeline:
             if key in seen:
                 continue
             seen.add(key)
+            # Collect alternate surface forms (mentions)
+            raw_mentions = item.get("mentions", [])
+            mentions: List[str] = []
+            if isinstance(raw_mentions, list):
+                for m in raw_mentions:
+                    m_clean = clean_text(str(m))
+                    if m_clean and m_clean.lower() != name.lower():
+                        mentions.append(m_clean)
             normalized.append({
                 "source_chunk": chunk_name,
                 "name": name,
                 "description": description,
+                "mentions": mentions,
             })
         return normalized
 
@@ -1088,6 +1110,12 @@ class OntologyExtractorPipeline:
             )
 
     def node_entity_extraction(self) -> None:
+        """Node 4 (now runs BEFORE triplet extraction).
+
+        Uses standalone entity extraction from paraphrased text. Builds the canonical
+        entity list and mention→canonical lookup table used as hard constraints in
+        triplet extraction.
+        """
         self._log(logging.INFO, "[4] Entity Extraction start")
         retries = int(self.config["retry"].get("entity_extraction", 3))
         batch = int(self.config.get("parallel_batch_size", 6))
@@ -1095,7 +1123,7 @@ class OntologyExtractorPipeline:
 
         with ThreadPoolExecutor(max_workers=batch) as executor:
             futures = {
-                executor.submit(self._extract_chunk_entities_from_triplets, path, retries): idx
+                executor.submit(self._extract_chunk_entities, path, retries): idx
                 for idx, path in enumerate(self.paraphrase_files)
             }
             for future in as_completed(futures):
@@ -1112,11 +1140,20 @@ class OntologyExtractorPipeline:
                 self.entities.append(entity)
                 self.entities_by_chunk.setdefault(entity["source_chunk"], []).append(entity)
 
-        self._refresh_triplet_descriptions()
+        # Build mention→canonical lookup for use in triplet extraction
+        self._mention_to_canonical = {}
+        for entity in self.entities:
+            canonical = entity["name"]
+            canonical_key = self._normalize_entity_key(canonical)
+            self._mention_to_canonical[canonical_key] = canonical
+            for mention in entity.get("mentions", []):
+                m_key = self._normalize_entity_key(mention)
+                if m_key and m_key not in self._mention_to_canonical:
+                    self._mention_to_canonical[m_key] = canonical
+
         self._build_entity_memory()
         self._write_json(self.intermediate / "entities.json", {"entities": self.entities})
         self._write_json(self.intermediate / "entityMemory.json", self.entity_memory)
-        self._write_json(self.intermediate / "triplets.json", self.triplets)
         self._log(logging.INFO, "[4] Entity Extraction completed: %s entities", len(self.entities))
 
     # ------------------------------------------------------------------
@@ -1131,27 +1168,46 @@ class OntologyExtractorPipeline:
         _ws = r'\s+'
         sentence_text = " " + re.sub(_ws, " ", sentence.casefold()) + " "
         matched: List[Dict[str, str]] = []
+        seen_names: set = set()
         for entity in self.entities_by_chunk.get(chunk_name, []):
-            name = entity["name"]
-            normalized_name = self._normalize_entity_key(name)
-            if not normalized_name:
+            canonical = entity["name"]
+            if canonical in seen_names:
                 continue
-            _escaped = re.escape(normalized_name)
-            pattern = r"(?<!\w)" + _escaped + r"(?!\w)"
-            if re.search(pattern, sentence_text):
-                matched.append(entity)
+            # Check canonical name and all mentions against the sentence
+            forms_to_check = [canonical] + list(entity.get("mentions", []))
+            for form in forms_to_check:
+                normalized_form = self._normalize_entity_key(form)
+                if not normalized_form:
+                    continue
+                _escaped = re.escape(normalized_form)
+                pattern = r"(?<!\w)" + _escaped + r"(?!\w)"
+                if re.search(pattern, sentence_text):
+                    matched.append(entity)
+                    seen_names.add(canonical)
+                    break
         return matched
 
     def _entity_description_context(self, chunk_name: str, entity_name: str) -> str:
         target = self._normalize_entity_key(entity_name)
         if not target:
             return ""
+        # Resolve mention to canonical name first
+        canonical_key = self._mention_to_canonical.get(target)
+        if canonical_key:
+            target = self._normalize_entity_key(canonical_key)
         for item in self.entities_by_chunk.get(chunk_name, []):
             if self._normalize_entity_key(item["name"]) == target:
                 return item["description"]
+            # Also check mentions
+            for mention in item.get("mentions", []):
+                if self._normalize_entity_key(mention) == target:
+                    return item["description"]
         for item in self.entities:
             if self._normalize_entity_key(item["name"]) == target:
                 return item["description"]
+            for mention in item.get("mentions", []):
+                if self._normalize_entity_key(mention) == target:
+                    return item["description"]
         return ""
 
     @staticmethod
@@ -1263,31 +1319,30 @@ class OntologyExtractorPipeline:
 
         for chunk_name, chunk_entities in self.entities_by_chunk.items():
             for entity in chunk_entities:
+                canonical = str(entity.get("name", "") or "")
                 description = str(entity.get("description", "") or "")
-                evidence_kind = self._classify_evidence_kind(entity.get("name", ""), description)
-                self._remember_entity_evidence(
-                    str(entity.get("name", "") or ""),
-                    chunk_name,
-                    description,
-                    evidence_kind,
-                )
+                evidence_kind = self._classify_evidence_kind(canonical, description)
+                self._remember_entity_evidence(canonical, chunk_name, description, evidence_kind)
+                # Register all mention aliases in entity memory
+                for mention in entity.get("mentions", []):
+                    mention_clean = clean_text(str(mention))
+                    if mention_clean:
+                        key = self._normalize_entity_key(canonical)
+                        if key in self.entity_memory:
+                            self.entity_memory[key]["aliases"].add(mention_clean)
 
+        # Add relation_context evidence from any already-extracted triplets (may be empty
+        # when called before triplet extraction — that is intentional)
         for row in self.triplets:
             sentence = str(row.get("source_sentence", "") or "")
             chunk_name = str(row.get("source_chunk", "") or "")
             if row.get("subject"):
                 self._remember_entity_evidence(
-                    str(row["subject"]),
-                    chunk_name,
-                    sentence,
-                    "relation_context",
+                    str(row["subject"]), chunk_name, sentence, "relation_context",
                 )
             if row.get("object"):
                 self._remember_entity_evidence(
-                    str(row["object"]),
-                    chunk_name,
-                    sentence,
-                    "relation_context",
+                    str(row["object"]), chunk_name, sentence, "relation_context",
                 )
 
         for memory in self.entity_memory.values():
@@ -1344,8 +1399,23 @@ class OntologyExtractorPipeline:
 
         return "\n".join(lines)
 
+    def _resolve_to_canonical(self, name: str) -> str:
+        """Map a raw entity name (possibly a mention/alias) to its canonical inventory name.
+
+        Returns the canonical name if a match is found; otherwise returns the original name.
+        """
+        if not name:
+            return name
+        key = self._normalize_entity_key(name)
+        canonical = self._mention_to_canonical.get(key)
+        return canonical if canonical else name
+
     def _extract_chunk_triplets(self, path: Path, retries: int) -> List[Dict[str, Any]]:
-        """Extract triplets from one paraphrased chunk. Thread-safe (only uses self.llm)."""
+        """Extract triplets from one paraphrased chunk. Thread-safe (only uses self.llm).
+
+        Entity list is used as a hard constraint (established in node_entity_extraction).
+        Subject/object names are anchored to canonical entity names via _resolve_to_canonical.
+        """
         chunk_text = self._read_text(path)
         chunk_name = path.stem
         chunk_triplets: List[Dict[str, Any]] = []
@@ -1375,6 +1445,12 @@ class OntologyExtractorPipeline:
                 obj = clean_text(item.get("object", ""))
                 if not subject or not predicate or not obj:
                     continue
+                # Anchor subject and object to canonical entity names
+                subject = self._resolve_to_canonical(subject)
+                obj = self._resolve_to_canonical(obj)
+                # Look up IoC flags from entity-level IoC detection results
+                subj_ioc, subj_ioc_type = self._entity_ioc_map.get(subject, (False, ""))
+                obj_ioc, obj_ioc_type = self._entity_ioc_map.get(obj, (False, ""))
                 # id assigned later in order
                 chunk_triplets.append({
                     "source_sentence": sentence,
@@ -1384,10 +1460,10 @@ class OntologyExtractorPipeline:
                     "predicate": predicate,
                     "object": obj,
                     "object_description": self._entity_description_context(chunk_name, obj),
-                    "isSubjectIoC": False,
-                    "isObjectIoC": False,
-                    "subjectIoCType": "",
-                    "objectIoCType": "",
+                    "isSubjectIoC": subj_ioc,
+                    "isObjectIoC": obj_ioc,
+                    "subjectIoCType": subj_ioc_type,
+                    "objectIoCType": obj_ioc_type,
                 })
         return chunk_triplets
 
@@ -1818,44 +1894,123 @@ class OntologyExtractorPipeline:
         self._log(logging.INFO, "[5] Triplet Extraction completed: %s triplets", len(self.triplets))
 
     # ------------------------------------------------------------------
+    # Node 5b: Implicit Triplet Extraction
+    # ------------------------------------------------------------------
+
+    def node_implicit_triplet_extraction(self) -> None:
+        """Extract implied relationships not directly stated in the text.
+
+        Runs after explicit triplet extraction. Uses the confirmed entity list and
+        already-extracted explicit triplets to elicit strongly-implied relationships.
+        """
+        self._log(logging.INFO, "[5b] Implicit Triplet Extraction start")
+        retries = int(self.config["retry"].get("triplet_extraction", 3))
+
+        self.implicit_triplets = []
+
+        for path in self.paraphrase_files:
+            chunk_text = self._read_text(path)
+            chunk_name = path.stem
+            chunk_entities = self.entities_by_chunk.get(chunk_name, [])
+            if not chunk_entities:
+                continue
+
+            chunk_explicit = [
+                {"subject": t["subject"], "predicate": t["predicate"], "object": t["object"]}
+                for t in self.triplets
+                if t.get("source_chunk") == chunk_name
+            ]
+
+            for attempt in range(retries):
+                try:
+                    parsed = self.llm.chat_json(
+                        implicit_triplet_prompt(chunk_text, chunk_entities, chunk_explicit)
+                    )
+                except Exception as e:
+                    self._log(logging.WARNING, "[5b] LLM error for chunk %s: %s", chunk_name, e)
+                    continue
+                if isinstance(parsed, dict) and isinstance(parsed.get("implicit_triplets"), list):
+                    for item in parsed["implicit_triplets"]:
+                        if not isinstance(item, dict):
+                            continue
+                        subj = clean_text(str(item.get("subject", "") or ""))
+                        rel = clean_text(str(item.get("relation", "") or ""))
+                        obj = clean_text(str(item.get("object", "") or ""))
+                        if not subj or not rel or not obj:
+                            continue
+                        # Anchor to canonical names
+                        subj = self._resolve_to_canonical(subj)
+                        obj = self._resolve_to_canonical(obj)
+                        self.implicit_triplets.append({
+                            "source_chunk": chunk_name,
+                            "subject": subj,
+                            "relation": rel,
+                            "object": obj,
+                        })
+                    break
+
+        self._write_json(self.intermediate / "implicitTriplets.json", self.implicit_triplets)
+        self._log(
+            logging.INFO, "[5b] Implicit Triplet Extraction completed: %s implicit triplets",
+            len(self.implicit_triplets),
+        )
+
+    # ------------------------------------------------------------------
     # Node 6: IoC Detection & Rearm
     # ------------------------------------------------------------------
 
     def node_ioc_detection(self) -> None:
-        self._log(logging.INFO, "[6] IoC Detection start")
-        for row in self.triplets:
-            for field in ("subject", "object"):
-                value = row[field]
-                if not value:
-                    continue
-                matches = self._ioc_matches(value)
-                if not matches:
-                    continue
-                for match in matches:
-                    candidate = str(match.get("value", "") or "")
-                    detected_type = str(match.get("type", "") or "")
-                    if not candidate:
-                        continue
-                    parsed = self.llm.chat_json(ioc_prompt(candidate, value, detected_type))
-                    if not isinstance(parsed, dict):
-                        continue
-                    if bool(parsed.get("is_ioc", False)):
-                        rearmed = parsed.get("rearmed_value") or value
-                        ioc_type = str(parsed.get("ioc_type", "") or detected_type)
-                        if field == "subject":
-                            row["isSubjectIoC"] = True
-                            row["subject"] = rearmed
-                            row["subjectIoCType"] = ioc_type
-                        else:
-                            row["isObjectIoC"] = True
-                            row["object"] = rearmed
-                            row["objectIoCType"] = ioc_type
-                        self._log(logging.INFO, "[6] IoC detected (%s/%s): %s -> %s", field, ioc_type or "unknown", value, rearmed)
-                        break  # first confirmed IoC per field is sufficient
+        """Node 6 (now runs AFTER entity extraction, BEFORE triplet extraction).
 
-        # Write once after processing all triplets
-        self._write_json(self.intermediate / "triplets.json", self.triplets)
-        self._log(logging.INFO, "[6] IoC Detection completed")
+        Operates on the entity list rather than triplet rows. Rearms defanged IoC values
+        in entity canonical names and builds self._entity_ioc_map so that triplet extraction
+        can propagate IoC flags when anchoring subject/object names.
+        """
+        self._log(logging.INFO, "[6] IoC Detection start")
+        self._entity_ioc_map = {}
+
+        for entity in self.entities:
+            original_name = entity["name"]
+            if not original_name:
+                continue
+            matches = self._ioc_matches(original_name)
+            if not matches:
+                continue
+            for match in matches:
+                candidate = str(match.get("value", "") or "")
+                detected_type = str(match.get("type", "") or "")
+                if not candidate:
+                    continue
+                parsed = self.llm.chat_json(ioc_prompt(candidate, original_name, detected_type))
+                if not isinstance(parsed, dict):
+                    continue
+                if bool(parsed.get("is_ioc", False)):
+                    rearmed = clean_text(str(parsed.get("rearmed_value") or original_name))
+                    ioc_type = str(parsed.get("ioc_type", "") or detected_type)
+                    old_key = self._normalize_entity_key(original_name)
+                    # Rearm the entity name in-place
+                    entity["name"] = rearmed
+                    # Update mention→canonical lookup: old canonical now points to rearmed
+                    if old_key in self._mention_to_canonical:
+                        self._mention_to_canonical[old_key] = rearmed
+                    new_key = self._normalize_entity_key(rearmed)
+                    self._mention_to_canonical[new_key] = rearmed
+                    # Record IoC status for triplet extraction
+                    self._entity_ioc_map[rearmed] = (True, ioc_type)
+                    self._log(
+                        logging.INFO, "[6] IoC detected (entity/%s): %s -> %s",
+                        ioc_type or "unknown", original_name, rearmed,
+                    )
+                    break  # first confirmed IoC per entity is sufficient
+
+        # Rebuild entities_by_chunk index with rearmed names
+        self.entities_by_chunk = {}
+        for entity in self.entities:
+            chunk = entity.get("source_chunk", "")
+            self.entities_by_chunk.setdefault(chunk, []).append(entity)
+
+        self._write_json(self.intermediate / "entities.json", {"entities": self.entities})
+        self._log(logging.INFO, "[6] IoC Detection completed. ioc_entities=%s", len(self._entity_ioc_map))
 
     @staticmethod
     def _regex_ioc_matches(value: str) -> List[Dict[str, str]]:
@@ -3673,20 +3828,20 @@ class OntologyExtractorPipeline:
             pipeline.node_paraphrasing()
             return state
 
-        def triplet_extraction(state: PipelineState) -> PipelineState:
-            pipeline.node_triplet_extraction()
-            return state
-
-        def triplet_normalization(state: PipelineState) -> PipelineState:
-            pipeline.node_triplet_normalization()
-            return state
-
         def entity_extraction(state: PipelineState) -> PipelineState:
             pipeline.node_entity_extraction()
             return state
 
         def ioc_detection(state: PipelineState) -> PipelineState:
             pipeline.node_ioc_detection()
+            return state
+
+        def triplet_extraction(state: PipelineState) -> PipelineState:
+            pipeline.node_triplet_extraction()
+            return state
+
+        def implicit_triplet_extraction(state: PipelineState) -> PipelineState:
+            pipeline.node_implicit_triplet_extraction()
             return state
 
         def type_matching(state: PipelineState) -> PipelineState:
@@ -3709,10 +3864,10 @@ class OntologyExtractorPipeline:
         builder.add_node("pre_processing", pre_processing)
         builder.add_node("chunking", chunking)
         builder.add_node("paraphrasing", paraphrasing)
-        builder.add_node("triplet_extraction", triplet_extraction)
-        builder.add_node("triplet_normalization", triplet_normalization)
         builder.add_node("entity_extraction", entity_extraction)
         builder.add_node("ioc_detection", ioc_detection)
+        builder.add_node("triplet_extraction", triplet_extraction)
+        builder.add_node("implicit_triplet_extraction", implicit_triplet_extraction)
         builder.add_node("type_matching", type_matching)
         builder.add_node("internal_entity_resolution", internal_entity_resolution)
         builder.add_node("existing_entity_resolution", existing_entity_resolution)
@@ -3721,11 +3876,11 @@ class OntologyExtractorPipeline:
         builder.set_entry_point("pre_processing")
         builder.add_edge("pre_processing", "chunking")
         builder.add_edge("chunking", "paraphrasing")
-        builder.add_edge("paraphrasing", "triplet_extraction")
-        builder.add_edge("triplet_extraction", "triplet_normalization")
-        builder.add_edge("triplet_normalization", "entity_extraction")
+        builder.add_edge("paraphrasing", "entity_extraction")
         builder.add_edge("entity_extraction", "ioc_detection")
-        builder.add_edge("ioc_detection", "type_matching")
+        builder.add_edge("ioc_detection", "triplet_extraction")
+        builder.add_edge("triplet_extraction", "implicit_triplet_extraction")
+        builder.add_edge("implicit_triplet_extraction", "type_matching")
         builder.add_edge("type_matching", "internal_entity_resolution")
         builder.add_edge("internal_entity_resolution", "existing_entity_resolution")
         builder.add_edge("existing_entity_resolution", "data_insert")
@@ -3767,17 +3922,17 @@ class OntologyExtractorPipeline:
             _timings.append((label, _elapsed))
             self._log(logging.INFO, "[TIMING] %-40s %dm %05.2fs", label, int(_elapsed) // 60, _elapsed % 60)
 
-        _run("prepare_plain_text_input",       self.prepare_plain_text_input)
-        _run("node_chunking",                  self.node_chunking)
-        _run("node_paraphrasing",              self.node_paraphrasing)
-        _run("node_triplet_extraction",        self.node_triplet_extraction)
-        _run("node_triplet_normalization",     self.node_triplet_normalization)
-        _run("node_entity_extraction",         self.node_entity_extraction)
-        _run("node_ioc_detection",             self.node_ioc_detection)
-        _run("node_type_matching",             self.node_type_matching)
-        _run("node_internal_entity_resolution",self.node_internal_entity_resolution)
-        _run("node_existing_entity_resolution",self.node_existing_entity_resolution)
-        _run("node_data_insert",               self.node_data_insert)
+        _run("prepare_plain_text_input",            self.prepare_plain_text_input)
+        _run("node_chunking",                       self.node_chunking)
+        _run("node_paraphrasing",                   self.node_paraphrasing)
+        _run("node_entity_extraction",              self.node_entity_extraction)
+        _run("node_ioc_detection",                  self.node_ioc_detection)
+        _run("node_triplet_extraction",             self.node_triplet_extraction)
+        _run("node_implicit_triplet_extraction",    self.node_implicit_triplet_extraction)
+        _run("node_type_matching",                  self.node_type_matching)
+        _run("node_internal_entity_resolution",     self.node_internal_entity_resolution)
+        _run("node_existing_entity_resolution",     self.node_existing_entity_resolution)
+        _run("node_data_insert",                    self.node_data_insert)
 
         total = _time.monotonic() - _total_start
         self._log(logging.INFO, "[DONE] Outputs at %s", self.run_root.resolve())
@@ -3804,14 +3959,14 @@ class OntologyExtractorPipeline:
             _timings.append((label, _elapsed))
             self._log(logging.INFO, "[TIMING] %-40s %dm %05.2fs", label, int(_elapsed) // 60, _elapsed % 60)
 
-        _run("prepare_plain_text_input", self.prepare_plain_text_input)
-        _run("node_chunking",            self.node_chunking)
-        _run("node_paraphrasing",        self.node_paraphrasing)
-        _run("node_triplet_extraction",  self.node_triplet_extraction)
-        _run("node_triplet_normalization", self.node_triplet_normalization)
-        _run("node_entity_extraction",   self.node_entity_extraction)
-        _run("node_ioc_detection",       self.node_ioc_detection)
-        _run("node_type_matching",       self.node_type_matching)
+        _run("prepare_plain_text_input",         self.prepare_plain_text_input)
+        _run("node_chunking",                    self.node_chunking)
+        _run("node_paraphrasing",               self.node_paraphrasing)
+        _run("node_entity_extraction",          self.node_entity_extraction)
+        _run("node_ioc_detection",              self.node_ioc_detection)
+        _run("node_triplet_extraction",         self.node_triplet_extraction)
+        _run("node_implicit_triplet_extraction", self.node_implicit_triplet_extraction)
+        _run("node_type_matching",              self.node_type_matching)
         _run("node_internal_entity_resolution", self.node_internal_entity_resolution)
 
         total = _time.monotonic() - _total_start
