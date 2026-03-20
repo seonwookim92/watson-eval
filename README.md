@@ -289,6 +289,10 @@ python evaluate_entity.py \
 | `--results` | 필수 | 모델 추출 결과 JSON 파일 |
 | `--ground-truth` | 필수 | GT 어노테이션 디렉터리 |
 | `--threshold` | `0.75` | Embedding 매칭 임계값 |
+| `--embedding-mode` | `.env` | Embedding backend (`local` \| `remote`) |
+| `--embedding-model` | `.env` | Embedding 모델명 |
+| `--embedding-base-url` | `.env` | Remote embedding base URL (`.../v1` 또는 `.../v1/embeddings`) |
+| `--embedding-api-key` | `.env` | Remote embedding API key |
 | `--llm-provider` | `.env` | LLM 판단에 사용할 provider (`openai` \| `anthropic` \| `gemini` \| `ollama`) |
 | `--llm-model` | `.env` | LLM 모델명 |
 | `--llm-base-url` | — | Ollama 등 로컬 LLM base URL |
@@ -385,6 +389,10 @@ python evaluate_triple.py \
 |------|--------|------|
 | `--mode` | `soft` | `soft` (S+O 매칭) \| `full` (S+R+O 매칭) |
 | `--include-implicit` | off | Implicit 트리플도 gold pool에 추가 |
+| `--embedding-mode` | `.env` | Embedding backend (`local` \| `remote`) |
+| `--embedding-model` | `.env` | Embedding 모델명 |
+| `--embedding-base-url` | `.env` | Remote embedding base URL (`.../v1` 또는 `.../v1/embeddings`) |
+| `--embedding-api-key` | `.env` | Remote embedding API key |
 | (나머지) | — | `evaluate_entity.py`와 동일 |
 
 ---
@@ -488,20 +496,42 @@ python evaluate_triple.py \
 
 ## 환경변수 (.env)
 
-`watson/.env`에 설정:
+루트 `.env`에 설정:
 
 ```env
-# LLM Provider (watson 추출에 사용)
+# LLM Provider (legacy watson 추출에 사용)
 LLM_PROVIDER=openai          # openai | ollama
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o
+OPENAI_BASE_URL=https://api.openai.com/v1
 
 # Ollama (로컬 LLM 사용 시)
 OLLAMA_BASE_URL=http://localhost:11434
 OLLAMA_MODEL=llama3.1:8b
 
-# 평가용 LLM (evaluate.py --match-mode llm 사용 시)
+# 평가용 LLM judge (evaluate_entity.py / evaluate_triple.py)
 EVAL_LLM_PROVIDER=ollama
 EVAL_LLM_MODEL=llama3.1:8b
 EVAL_LLM_BASE_URL=http://localhost:11434
+
+# 평가용 Embedding backend
+EVAL_EMBEDDING_MODE=local    # local | remote
+EVAL_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+# EVAL_EMBEDDING_BASE_URL=http://192.168.100.2:8082/v1
+# EVAL_EMBEDDING_API_KEY=
+
+# watson-new 추출용 LLM / Embedding
+WATSON_NEW_LLM_BASE_URL=http://192.168.100.2:8081/v1
+WATSON_NEW_LLM_MODEL=qwen3.5-35b
+WATSON_NEW_EMBEDDING_MODE=remote
+WATSON_NEW_EMBEDDING_BASE_URL=http://192.168.100.2:8082/v1
+WATSON_NEW_EMBEDDING_MODEL=sentence-transformers/all-MiniLM-L6-v2
+# WATSON_NEW_EMBEDDING_API_KEY=
 ```
+
+메모:
+
+- `watson-new/eval.py`, `evaluate_entity.py`, `evaluate_triple.py` 는 모두 루트 `.env`를 읽습니다.
+- `EVAL_EMBEDDING_MODE=remote` 로 두면 평가 스크립트의 embedding matcher도 remote endpoint를 사용합니다.
+- `EVAL_LLM_BASE_URL` 또는 `OPENAI_BASE_URL`을 설정하면 평가용 LLM judge가 해당 OpenAI-compatible endpoint를 사용합니다.
+- `WATSON_NEW_*` 값은 `watson-new` 추출 파이프라인용입니다. `run.py --model watson-new ...` 실행 시에도 같은 값을 사용합니다.

@@ -314,11 +314,33 @@ def _count_relation_type_hier_stats(
 # ── Matchers ──────────────────────────────────────────────────────────────────
 
 class EmbeddingMatcher:
-    def __init__(self, threshold: float = 0.75, model_name: str = "all-MiniLM-L6-v2"):
-        from sentence_transformers import SentenceTransformer
+    def __init__(
+        self,
+        threshold: float = 0.75,
+        model_name: str = "all-MiniLM-L6-v2",
+        mode: str = "local",
+        base_url: str = "",
+        api_key: str = "",
+        truncate_prompt_tokens: int = 256,
+        timeout: float = 120,
+    ):
         import numpy as np
-        print(f"[emb] Loading '{model_name}'...", flush=True)
-        self.model     = SentenceTransformer(model_name)
+
+        from core.eval.embedding_backend import build_embedding_backend
+
+        self.mode = (mode or "local").strip().lower()
+        if self.mode == "remote":
+            print(f"[emb] Using remote backend '{model_name}' @ {base_url}", flush=True)
+        else:
+            print(f"[emb] Using local sentence-transformers '{model_name}'", flush=True)
+        self.backend   = build_embedding_backend(
+            mode=self.mode,
+            model_name=model_name,
+            base_url=base_url,
+            api_key=api_key,
+            truncate_prompt_tokens=truncate_prompt_tokens,
+            timeout=timeout,
+        )
         self.threshold = threshold
         self._np       = np
 
@@ -330,7 +352,7 @@ class EmbeddingMatcher:
     def score_matrix(self, preds: List[str], golds: List[str]) -> List[List[float]]:
         if not preds or not golds:
             return []
-        embs = self.model.encode(preds + golds, show_progress_bar=False)
+        embs = self.backend.encode(preds + golds)
         pe, ge = embs[:len(preds)], embs[len(preds):]
         return [[self._cos(p, g) for g in ge] for p in pe]
 
@@ -395,28 +417,9 @@ class JaccardMatcher:
 # ── LLM helpers ───────────────────────────────────────────────────────────────
 
 def _build_llm(provider: str, model: str, base_url: str = None):
-    if provider == "openai":
-        from langchain_openai import ChatOpenAI
-        kwargs = {"model": model, "api_key": os.getenv("OPENAI_API_KEY", "dummy"), "temperature": 0,
-                  "model_kwargs": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}}
-        if base_url:
-            kwargs["base_url"] = base_url
-        return ChatOpenAI(**kwargs)
-    elif provider == "gemini":
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(
-            model=model, google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
-    elif provider in ("claude", "anthropic"):
-        from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(
-            model=model, anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"), temperature=0)
-    else:
-        from langchain_ollama import ChatOllama
-        return ChatOllama(
-            model=model,
-            base_url=base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-            temperature=0,
-        )
+    from core.eval.llm_backend import build_llm_judge
+
+    return build_llm_judge(provider, model, base_url)
 
 
 async def _llm_batch_match_triples(
@@ -426,7 +429,6 @@ async def _llm_batch_match_triples(
     llm,
 ) -> List[Tuple[int, int]]:
     """One LLM call → 0-indexed (pred_i, gold_j) matched pairs. Deduplicates gold."""
-    from langchain_core.messages import SystemMessage, HumanMessage
     if not pred_triples or not gold_triples:
         return []
 
@@ -466,8 +468,8 @@ async def _llm_batch_match_triples(
         'Output JSON: [{"pred": <1-indexed>, "gold": <1-indexed>}, ...] or []'
     )
     resp = await llm.ainvoke([
-        SystemMessage(content="Precise semantic evaluation assistant. Output only valid JSON."),
-        HumanMessage(content=prompt),
+        {"role": "system", "content": "Precise semantic evaluation assistant. Output only valid JSON."},
+        {"role": "user", "content": prompt},
     ])
     try:
         m = re.search(r'\[.*?\]', resp.content, re.DOTALL)
@@ -762,6 +764,11 @@ async def main() -> None:
                         help="LLM judge provider: openai|gemini|claude|ollama")
     parser.add_argument("--llm-model",        default=None, help="LLM model name")
     parser.add_argument("--llm-base-url",     default=None, help="LLM judge base URL")
+    parser.add_argument("--embedding-mode",   default=None, choices=["local", "remote"],
+                        help="Embedding backend mode")
+    parser.add_argument("--embedding-model",  default=None, help="Embedding model name")
+    parser.add_argument("--embedding-base-url", default=None, help="Remote embedding base URL")
+    parser.add_argument("--embedding-api-key", default=None, help="Remote embedding API key")
     parser.add_argument("--limit",            type=int, default=None,
                         help="Max samples to evaluate (default: all)")
     parser.add_argument("--output",           default=None,
@@ -773,6 +780,10 @@ async def main() -> None:
     llm_model    = args.llm_model    or config.EVAL_LLM_MODEL
     llm_base_url = args.llm_base_url or config.EVAL_LLM_BASE_URL
     llm_tag      = f"{llm_provider}/{llm_model}"
+    emb_mode     = args.embedding_mode or config.EVAL_EMBEDDING_MODE
+    emb_model    = args.embedding_model or config.EVAL_EMBEDDING_MODEL
+    emb_base_url = args.embedding_base_url or config.EVAL_EMBEDDING_BASE_URL
+    emb_api_key  = args.embedding_api_key if args.embedding_api_key is not None else config.EVAL_EMBEDDING_API_KEY
 
     # ── Resolve input files and output paths ──────────────────────────────────
     results_path = Path(args.results)
@@ -797,6 +808,9 @@ async def main() -> None:
     print(f"[*] Emb threshold: {args.emb_threshold}")
     print(f"[*] Jac threshold: {args.jac_threshold}")
     print(f"[*] Type ontology: {args.ontology or 'auto'}")
+    print(f"[*] Emb backend  : {emb_mode}/{emb_model}")
+    if emb_mode == "remote" and emb_base_url:
+        print(f"[*] Emb endpoint : {emb_base_url}")
     print(f"[*] LLM judge    : {llm_tag}")
     if llm_base_url:
         print(f"[*] LLM endpoint : {llm_base_url}")
@@ -807,7 +821,15 @@ async def main() -> None:
     # ── Shared resources (loaded once) ────────────────────────────────────────
     gt_map = _load_gt_with_implicit(args.ground_truth)
     jac    = JaccardMatcher(threshold=args.jac_threshold)
-    emb    = EmbeddingMatcher(threshold=args.emb_threshold)
+    emb    = EmbeddingMatcher(
+        threshold=args.emb_threshold,
+        model_name=emb_model,
+        mode=emb_mode,
+        base_url=emb_base_url,
+        api_key=emb_api_key,
+        truncate_prompt_tokens=config.EVAL_EMBEDDING_TRUNCATE_PROMPT_TOKENS,
+        timeout=config.EVAL_EMBEDDING_TIMEOUT_SECONDS,
+    )
     llm    = _build_llm(llm_provider, llm_model, llm_base_url)
 
     # ── Process each results file ─────────────────────────────────────────────
