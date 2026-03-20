@@ -121,7 +121,7 @@ MODELS = {
         "venv":    ROOT / "baselines" / "ctinexus" / ".venv",
         "schemas": ["uco", "stix", "malont"],
         "cmd": lambda py, schema, limit, out: [
-            py, "eval_ctinexus.py", str(limit or 0), schema,
+            py, "eval_ctinexus.py", str(limit or 0), schema, out,
         ],
     },
     "ttpdrill": {
@@ -129,7 +129,7 @@ MODELS = {
         "venv":    ROOT / "baselines" / "ttpdrill" / ".venv_ttpdrill",
         "schemas": ["uco", "stix", "malont"],
         "cmd": lambda py, schema, limit, out: [
-            py, "eval_ttpdrill.py", str(limit or 0), schema,
+            py, "eval_ttpdrill.py", str(limit or 0), schema, out,
         ],
     },
     "gtikg": {

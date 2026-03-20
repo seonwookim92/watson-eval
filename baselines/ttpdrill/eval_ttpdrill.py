@@ -29,7 +29,7 @@ DATASET_DIR = os.getenv("DATASET_DIR", os.path.join(_ROOT, "datasets", "ctinexus
 OUTPUT_DIR  = os.getenv("OUTPUT_DIR",  os.path.join(_ROOT, "outputs"))
 BASELINE_NAME = "ttpdrill"
 
-def run_evaluation(ontology_mode="uco", limit=None):
+def run_evaluation(ontology_mode="uco", limit=None, output_path=None):
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
     
@@ -168,19 +168,22 @@ def run_evaluation(ontology_mode="uco", limit=None):
             import traceback
             traceback.print_exc()
 
-    output_file = os.path.join(OUTPUT_DIR, f"{BASELINE_NAME}_{ontology_mode}_results.json")
+    output_file = output_path or os.path.join(OUTPUT_DIR, f"{BASELINE_NAME}_{ontology_mode}_results.json")
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results, f, ensure_ascii=False, indent=2)
-    
+
     print(f"Results saved to {output_file}")
 
 if __name__ == "__main__":
     limit = None
     if len(sys.argv) > 1:
         limit = int(sys.argv[1])
-    
+
     mode = "uco"
     if len(sys.argv) > 2:
         mode = sys.argv[2]
-        
-    run_evaluation(ontology_mode=mode, limit=limit)
+
+    output_path = sys.argv[3] if len(sys.argv) > 3 else None
+
+    run_evaluation(ontology_mode=mode, limit=limit, output_path=output_path)

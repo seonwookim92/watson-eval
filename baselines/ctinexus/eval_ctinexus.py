@@ -22,7 +22,7 @@ DATASET_DIR = os.getenv("DATASET_DIR", str(_ROOT / "datasets" / "ctinexus" / "an
 OUTPUT_DIR  = os.getenv("OUTPUT_DIR",  str(_ROOT / "outputs"))
 BASELINE_NAME = "ctinexus"
 
-def run_evaluation(ontology="baseline", limit=None):
+def run_evaluation(ontology="baseline", limit=None, output_path=None):
     if not os.path.exists(OUTPUT_DIR):
         os.makedirs(OUTPUT_DIR)
     
@@ -146,15 +146,17 @@ def run_evaluation(ontology="baseline", limit=None):
             continue
 
     # Save final results
-    output_file = os.path.join(OUTPUT_DIR, f"{BASELINE_NAME}_{ontology}_results.json")
+    output_file = output_path or os.path.join(OUTPUT_DIR, f"{BASELINE_NAME}_{ontology}_results.json")
+    Path(output_file).parent.mkdir(parents=True, exist_ok=True)
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
-    
+
     print(f"Evaluation complete. Results saved to {output_file}")
 
 if __name__ == "__main__":
     import sys
     limit = int(sys.argv[1]) if len(sys.argv) > 1 else 3
     ontology = sys.argv[2] if len(sys.argv) > 2 else "baseline"
-    
-    run_evaluation(ontology=ontology, limit=limit)
+    output_path = sys.argv[3] if len(sys.argv) > 3 else None
+
+    run_evaluation(ontology=ontology, limit=limit, output_path=output_path)
