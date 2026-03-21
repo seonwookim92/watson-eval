@@ -1064,7 +1064,7 @@ async def main() -> None:
         input_files = sorted(results_path.glob("*_results.json"))
         if not input_files:
             raise ValueError(f"No *_results.json files found in: {results_path}")
-        out_dir = Path(args.output) if args.output else results_path
+        out_dir = Path(args.output) if args.output else results_path / "eval_outputs"
         out_dir.mkdir(parents=True, exist_ok=True)
         file_jobs: List[tuple] = [
             (f, out_dir / f"eval_entity_{_results_key(f)}.json")

@@ -1,1 +1,0 @@
-python run.py --model watson-new --schema all --limit 1 --watson-new-llm-base-url http://192.168.100.2:8081/v1 --watson-new-embedding-mode remote --watson-new-embedding-base-url http://192.168.100.2:8082/v1
