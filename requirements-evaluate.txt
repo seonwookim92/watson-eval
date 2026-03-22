@@ -12,8 +12,8 @@ sentence-transformers
 numpy
 
 # LLM judge (provider libraries loaded lazily — install all to support any provider)
+openai
 langchain-core
-langchain-openai
 langchain-google-genai
 langchain-anthropic
 langchain-ollama
