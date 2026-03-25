@@ -15,8 +15,68 @@ import json
 import re
 from typing import List, Optional, Tuple
 
+from .embedding_backend import build_embedding_backend
+
 
 # ── helpers ──────────────────────────────────────────────────────────────────
+
+class _OpenAICompatLLM:
+    def __init__(self, model: str, base_url: str = "", api_key: str | None = None):
+        self.model = model
+        self.base_url = base_url
+        self.api_key = api_key or "dummy"
+        try:
+            from openai import AsyncOpenAI  # type: ignore
+            self._client = AsyncOpenAI(api_key=self.api_key, base_url=self.base_url or None)
+        except Exception:
+            self._client = None
+
+    async def ainvoke(self, messages):
+        normalized = []
+        role_map = {"human": "user", "ai": "assistant"}
+        for msg in messages:
+            if isinstance(msg, dict):
+                role = str(msg.get("role", "user"))
+                content = str(msg.get("content", ""))
+            else:
+                role = role_map.get(getattr(msg, "type", ""), getattr(msg, "type", "user"))
+                content = getattr(msg, "content", "")
+                if isinstance(content, list):
+                    content = "".join(str(part) for part in content)
+                content = str(content)
+            normalized.append({"role": role, "content": content})
+
+        if self._client is not None:
+            resp = await self._client.chat.completions.create(
+                model=self.model,
+                messages=normalized,
+                temperature=0,
+                extra_body={"chat_template_kwargs": {"enable_thinking": False}},
+            )
+            content = resp.choices[0].message.content or ""
+            return type("_Resp", (), {"content": content})()
+
+        import asyncio
+        import requests
+
+        def _post() -> str:
+            payload = {
+                "model": self.model,
+                "messages": normalized,
+                "temperature": 0,
+                "chat_template_kwargs": {"enable_thinking": False},
+            }
+            headers = {"Content-Type": "application/json"}
+            if self.api_key:
+                headers["Authorization"] = f"Bearer {self.api_key}"
+            endpoint = f"{self.base_url.rstrip('/')}/chat/completions"
+            response = requests.post(endpoint, json=payload, headers=headers, timeout=120)
+            response.raise_for_status()
+            body = response.json()
+            return body["choices"][0]["message"]["content"]
+
+        content = await asyncio.to_thread(_post)
+        return type("_Resp", (), {"content": content})()
 
 def _triple_str(t: dict) -> str:
     return (
@@ -109,10 +169,21 @@ class EmbeddingMatcher:
         self,
         model_name: str = "all-MiniLM-L6-v2",
         threshold: float = 0.75,
+        mode: str = "local",
+        base_url: str = "",
+        api_key: str = "",
+        truncate_prompt_tokens: int = 256,
+        timeout: float = 120,
     ):
-        from sentence_transformers import SentenceTransformer
         import numpy as np
-        self.model = SentenceTransformer(model_name)
+        self.backend = build_embedding_backend(
+            mode=mode,
+            model_name=model_name,
+            base_url=base_url,
+            api_key=api_key,
+            truncate_prompt_tokens=truncate_prompt_tokens,
+            timeout=timeout,
+        )
         self.threshold = threshold
         self._np = np
 
@@ -124,7 +195,7 @@ class EmbeddingMatcher:
     def _batch_match(self, pred_strs: List[str], gold_strs: List[str]) -> int:
         if not pred_strs or not gold_strs:
             return 0
-        all_embs = self.model.encode(pred_strs + gold_strs, show_progress_bar=False)
+        all_embs = self.backend.encode(pred_strs + gold_strs)
         pred_embs = all_embs[: len(pred_strs)]
         gold_embs = all_embs[len(pred_strs) :]
 
@@ -168,12 +239,7 @@ class LLMMatcher:
     ):
         # temperature=0: deterministic output, no randomness in judgment
         if provider == "openai":
-            from langchain_openai import ChatOpenAI
-            kwargs = {"model": model, "api_key": api_key, "temperature": 0,
-                      "model_kwargs": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}}
-            if base_url:
-                kwargs["base_url"] = base_url
-            self.llm = ChatOpenAI(**kwargs)
+            self.llm = _OpenAICompatLLM(model=model, base_url=base_url, api_key=api_key)
         elif provider == "gemini":
             from langchain_google_genai import ChatGoogleGenerativeAI
             self.llm = ChatGoogleGenerativeAI(model=model, google_api_key=api_key, temperature=0)
@@ -293,11 +359,25 @@ def build_matcher(
     eval_model: str = "llama3.1:8b",
     eval_base_url: str = "http://localhost:11434",
     eval_api_key: Optional[str] = None,
+    eval_embedding_mode: str = "local",
+    eval_embedding_model: str = "all-MiniLM-L6-v2",
+    eval_embedding_base_url: str = "",
+    eval_embedding_api_key: str = "",
+    eval_embedding_truncate_prompt_tokens: int = 256,
+    eval_embedding_timeout_seconds: float = 120,
 ):
     """Instantiate the correct matcher from a mode string."""
     if mode == "embedding":
         t = threshold if threshold is not None else 0.75
-        return EmbeddingMatcher(threshold=t)
+        return EmbeddingMatcher(
+            threshold=t,
+            model_name=eval_embedding_model,
+            mode=eval_embedding_mode,
+            base_url=eval_embedding_base_url,
+            api_key=eval_embedding_api_key,
+            truncate_prompt_tokens=eval_embedding_truncate_prompt_tokens,
+            timeout=eval_embedding_timeout_seconds,
+        )
     elif mode == "llm":
         from core.config import config
         api_key = eval_api_key

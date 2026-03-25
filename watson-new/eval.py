@@ -64,8 +64,15 @@ def parse_args() -> argparse.Namespace:
     p.add_argument("--limit",     type=int, default=None)
     p.add_argument("--verbose",   action="store_true")
     p.add_argument("--llm-base-url", default=None)
+    p.add_argument("--llm-model", default=None)
     p.add_argument("--embedding-mode", choices=["local", "remote"], default=None)
     p.add_argument("--embedding-base-url", default=None)
+    p.add_argument("--embedding-model", default=None)
+    p.add_argument("--mcp-llm-base-url", default=None)
+    p.add_argument("--mcp-llm-model", default=None)
+    p.add_argument("--mcp-embedding-mode", choices=["local", "remote"], default=None)
+    p.add_argument("--mcp-embedding-base-url", default=None)
+    p.add_argument("--mcp-embedding-model", default=None)
     return p.parse_args()
 
 
@@ -149,10 +156,24 @@ def main() -> int:
 
     if args.llm_base_url:
         os.environ["WATSON_NEW_LLM_BASE_URL"] = args.llm_base_url
+    if args.llm_model:
+        os.environ["WATSON_NEW_LLM_MODEL"] = args.llm_model
     if args.embedding_mode is not None:
         os.environ["WATSON_NEW_EMBEDDING_MODE"] = args.embedding_mode
     if args.embedding_base_url:
         os.environ["WATSON_NEW_EMBEDDING_BASE_URL"] = args.embedding_base_url
+    if args.embedding_model:
+        os.environ["WATSON_NEW_EMBEDDING_MODEL"] = args.embedding_model
+    if args.mcp_llm_base_url:
+        os.environ["WATSON_NEW_MCP_LLM_BASE_URL"] = args.mcp_llm_base_url
+    if args.mcp_llm_model:
+        os.environ["WATSON_NEW_MCP_LLM_MODEL"] = args.mcp_llm_model
+    if args.mcp_embedding_mode is not None:
+        os.environ["WATSON_NEW_MCP_EMBEDDING_MODE"] = args.mcp_embedding_mode
+    if args.mcp_embedding_base_url:
+        os.environ["WATSON_NEW_MCP_EMBEDDING_BASE_URL"] = args.mcp_embedding_base_url
+    if args.mcp_embedding_model:
+        os.environ["WATSON_NEW_MCP_EMBEDDING_MODEL"] = args.mcp_embedding_model
 
     schema_file = SCHEMA_FILES[args.schema]
     if not schema_file.exists():

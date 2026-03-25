@@ -105,6 +105,22 @@ async def main() -> None:
         help="Base URL for Ollama (llm match mode)",
     )
     parser.add_argument(
+        "--eval-embedding-mode", default=None, choices=["local", "remote"],
+        help="Embedding backend for embedding match mode",
+    )
+    parser.add_argument(
+        "--eval-embedding-model", default=None,
+        help="Embedding model name for embedding match mode",
+    )
+    parser.add_argument(
+        "--eval-embedding-base-url", default=None,
+        help="Embedding API base URL or full /embeddings endpoint for embedding match mode",
+    )
+    parser.add_argument(
+        "--eval-embedding-api-key", default=None,
+        help="Optional API key for remote embedding match mode",
+    )
+    parser.add_argument(
         "--output", default=None,
         help="Optional: save full per-sample metrics to this JSON file",
     )
@@ -131,6 +147,10 @@ async def main() -> None:
     eval_provider = args.eval_provider or config.EVAL_LLM_PROVIDER
     eval_model    = args.eval_model    or config.EVAL_LLM_MODEL
     eval_base_url = args.eval_base_url or config.EVAL_LLM_BASE_URL
+    eval_embedding_mode = args.eval_embedding_mode or config.EVAL_EMBEDDING_MODE
+    eval_embedding_model = args.eval_embedding_model or config.EVAL_EMBEDDING_MODEL
+    eval_embedding_base_url = args.eval_embedding_base_url or config.EVAL_EMBEDDING_BASE_URL
+    eval_embedding_api_key = args.eval_embedding_api_key or config.EVAL_EMBEDDING_API_KEY
     if eval_provider == "openai":
         eval_api_key = config.OPENAI_API_KEY
     elif eval_provider in ("claude", "anthropic"):
@@ -147,6 +167,12 @@ async def main() -> None:
         eval_model=eval_model,
         eval_base_url=eval_base_url,
         eval_api_key=eval_api_key,
+        eval_embedding_mode=eval_embedding_mode,
+        eval_embedding_model=eval_embedding_model,
+        eval_embedding_base_url=eval_embedding_base_url,
+        eval_embedding_api_key=eval_embedding_api_key,
+        eval_embedding_truncate_prompt_tokens=config.EVAL_EMBEDDING_TRUNCATE_PROMPT_TOKENS,
+        eval_embedding_timeout_seconds=config.EVAL_EMBEDDING_TIMEOUT_SECONDS,
     )
 
     print(f"[*] Results     : {args.results}")
@@ -154,6 +180,9 @@ async def main() -> None:
     print(f"[*] Match mode  : {args.match_mode}")
     if args.match_mode == "embedding":
         print(f"[*] Threshold   : {args.eval_threshold or 0.75}")
+        print(f"[*] Embedding   : {eval_embedding_mode} / {eval_embedding_model}")
+        if eval_embedding_mode == "remote":
+            print(f"[*] Emb endpoint: {eval_embedding_base_url}")
     elif args.match_mode == "llm":
         print(f"[*] Eval LLM    : {eval_provider} / {eval_model}")
 

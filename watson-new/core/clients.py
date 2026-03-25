@@ -65,12 +65,15 @@ class LLMClient:
             payload["response_format"] = {"type": "json_object"}
         last_exc: Exception = RuntimeError("LLM request failed")
         for attempt in range(1, 4):
+            started_at = time.perf_counter()
             try:
                 resp = requests.post(self.endpoint, json=payload, timeout=self.timeout)
                 resp.raise_for_status()
                 data = resp.json()
                 try:
                     content = data["choices"][0]["message"]["content"]
+                    duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+                    usage = data.get("usage", {}) if isinstance(data, dict) else {}
                     if self.tracer and trace_context:
                         self.tracer({
                             **trace_context,
@@ -78,31 +81,48 @@ class LLMClient:
                             "request": payload,
                             "response": data,
                             "response_content": content,
+                            "attempt": attempt,
+                            "duration_ms": duration_ms,
+                            "usage": usage,
                         })
+                    self.logger.info(
+                        "[LLM][done] model=%s attempt=%s duration_ms=%.3f prompt_chars=%s response_chars=%s",
+                        self.model,
+                        attempt,
+                        duration_ms,
+                        sum(len(m.get("content", "")) for m in messages if isinstance(m, dict)),
+                        len(content or ""),
+                    )
                     return content
                 except (KeyError, IndexError, TypeError):
                     raise RuntimeError(f"Invalid chat response format: {data}")
             except requests.exceptions.Timeout:
+                duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
                 if self.tracer and trace_context:
                     self.tracer({
                         **trace_context,
                         "event": "llm_timeout",
                         "request": payload,
                         "error": f"timeout after {self.timeout}s",
+                        "attempt": attempt,
+                        "duration_ms": duration_ms,
                     })
                 self.logger.error(
-                    "[LLM][timeout] model=%s attempt=%s timeout=%ss",
+                    "[LLM][timeout] model=%s attempt=%s timeout=%ss duration_ms=%.3f",
                     self.model,
                     attempt,
                     self.timeout,
+                    duration_ms,
                 )
                 # Timeout: raise immediately, no point retrying same payload
                 raise
             except Exception as e:
+                duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
                 self.logger.warning(
-                    "[LLM][error] model=%s attempt=%s error=%s",
+                    "[LLM][error] model=%s attempt=%s duration_ms=%.3f error=%s",
                     self.model,
                     attempt,
+                    duration_ms,
                     e,
                 )
                 if self.tracer and trace_context:
@@ -112,6 +132,7 @@ class LLMClient:
                         "request": payload,
                         "error": str(e),
                         "attempt": attempt,
+                        "duration_ms": duration_ms,
                     })
                 last_exc = e
                 if attempt < 3:
@@ -161,7 +182,10 @@ class RemoteEmbeddingClient(EmbeddingClient):
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.model = model
-        self.endpoint = f"{self.base_url}/embeddings"
+        if self.base_url.endswith("/embeddings"):
+            self.endpoint = self.base_url
+        else:
+            self.endpoint = f"{self.base_url}/embeddings"
         self.truncate_prompt_tokens = truncate_prompt_tokens
         self.timeout = timeout
         self.api_key = api_key
@@ -271,6 +295,7 @@ class MCPStdioClient:
         property_recommender_model: str = "",
         property_recommender_api_key: str = "",
         timeout: int = 120,
+        tracer: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> None:
         self.script_path = os.path.abspath(script_path)
         ontology_path = Path(ontology_file).resolve()
@@ -285,6 +310,7 @@ class MCPStdioClient:
         self.property_recommender_model = property_recommender_model
         self.property_recommender_api_key = property_recommender_api_key
         self.timeout = timeout
+        self.tracer = tracer
         self.proc: Optional[subprocess.Popen] = None
         self._id = 1
         # Single subprocess → all send/receive must be serialised across threads
@@ -295,7 +321,10 @@ class MCPStdioClient:
         env = {**os.environ, "ONTOLOGY_DIR": self.ontology_dir}
         env["EMBEDDING_MODE"] = self.embedding_mode
         if self.embedding_base_url and self.embedding_mode == "remote":
-            env["EMBEDDING_API_URL"] = f"{self.embedding_base_url}/embeddings"
+            if self.embedding_base_url.endswith("/embeddings"):
+                env["EMBEDDING_API_URL"] = self.embedding_base_url
+            else:
+                env["EMBEDDING_API_URL"] = f"{self.embedding_base_url}/embeddings"
         if self.embedding_model:
             env["EMBEDDING_MODEL"] = self.embedding_model
         env["EMBEDDING_TRUNCATE_PROMPT_TOKENS"] = str(self.embedding_truncate_prompt_tokens)
@@ -357,6 +386,20 @@ class MCPStdioClient:
                 break
             line = raw.decode("utf-8", errors="replace").rstrip()
             if line:
+                if line.startswith("MCP_TIMING "):
+                    payload_text = line[len("MCP_TIMING "):].strip()
+                    try:
+                        payload = json.loads(payload_text)
+                    except json.JSONDecodeError:
+                        self.logger.warning("[MCP-stderr][invalid-json] %s", payload_text)
+                        continue
+                    event_name = str(payload.get("event", "mcp_server_timing"))
+                    if self.tracer:
+                        trace_payload = dict(payload)
+                        trace_payload["event"] = event_name
+                        self.tracer(trace_payload)
+                    self.logger.info("[MCP-server] %s", payload_text)
+                    continue
                 self.logger.debug("[MCP-stderr] %s", line)
 
     def _read_message(self, timeout: Optional[float] = None) -> Dict[str, Any]:
@@ -412,15 +455,63 @@ class MCPStdioClient:
                 payload["id"] = request_id
             if params is not None:
                 payload["params"] = params
+            tool_name = ""
+            if method == "tools/call" and isinstance(params, dict):
+                tool_name = str(params.get("name", "") or "")
+            started_at = time.perf_counter()
             data = (json.dumps(payload, ensure_ascii=False) + "\n").encode("utf-8")
-            self.proc.stdin.write(data)
-            self.proc.stdin.flush()
-            if not with_id:
-                return {}
-            response = self._read_result_for(request_id)
-            if "error" in response:
-                raise RuntimeError(f"MCP call failed: {response['error']}")
-            return response.get("result", {})
+            try:
+                self.proc.stdin.write(data)
+                self.proc.stdin.flush()
+                if not with_id:
+                    duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+                    self.logger.info(
+                        "[MCP][notify] method=%s tool=%s duration_ms=%.3f",
+                        method,
+                        tool_name or "-",
+                        duration_ms,
+                    )
+                    return {}
+                response = self._read_result_for(request_id)
+                duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+                if self.tracer:
+                    self.tracer({
+                        "event": "mcp_roundtrip",
+                        "method": method,
+                        "tool": tool_name,
+                        "request_id": request_id,
+                        "duration_ms": duration_ms,
+                    })
+                self.logger.info(
+                    "[MCP][done] method=%s tool=%s request_id=%s duration_ms=%.3f",
+                    method,
+                    tool_name or "-",
+                    request_id,
+                    duration_ms,
+                )
+                if "error" in response:
+                    raise RuntimeError(f"MCP call failed: {response['error']}")
+                return response.get("result", {})
+            except Exception as exc:
+                duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+                if self.tracer:
+                    self.tracer({
+                        "event": "mcp_roundtrip_error",
+                        "method": method,
+                        "tool": tool_name,
+                        "request_id": request_id,
+                        "duration_ms": duration_ms,
+                        "error": str(exc),
+                    })
+                self.logger.warning(
+                    "[MCP][error] method=%s tool=%s request_id=%s duration_ms=%.3f error=%s",
+                    method,
+                    tool_name or "-",
+                    request_id,
+                    duration_ms,
+                    exc,
+                )
+                raise
 
     def _rpc_notification(self, method: str, params: Dict[str, Any]) -> None:
         self._send(method, params, with_id=False)
@@ -432,7 +523,7 @@ class MCPStdioClient:
             "clientInfo": {"name": "ontology-extractor", "version": "1.0"},
         }
         result = self._send("initialize", init_payload)
-        self.logger.info("[MCP] Initialized protocol version: %s", result.get("protocolVersion", "unknown"))
+        self.logger.debug("[MCP] Initialized protocol version: %s", result.get("protocolVersion", "unknown"))
         self._rpc_notification("notifications/initialized", {})
 
     def list_tools(self) -> Dict[str, Any]:

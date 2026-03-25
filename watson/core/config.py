@@ -78,6 +78,31 @@ class Config:
         "EVAL_LLM_BASE_URL",
         os.getenv("OPENAI_BASE_URL", "http://127.0.0.1:8081/v1"),
     )
+    EVAL_EMBEDDING_MODE = os.getenv(
+        "EVAL_EMBEDDING_MODE",
+        os.getenv("WATSON_NEW_EMBEDDING_MODE", "local"),
+    )
+    EVAL_EMBEDDING_MODEL = os.getenv(
+        "EVAL_EMBEDDING_MODEL",
+        os.getenv("WATSON_NEW_EMBEDDING_MODEL", "sentence-transformers/all-MiniLM-L6-v2"),
+    )
+    EVAL_EMBEDDING_BASE_URL = os.getenv(
+        "EVAL_EMBEDDING_BASE_URL",
+        os.getenv("WATSON_NEW_EMBEDDING_BASE_URL", "http://192.168.100.2:8082/v1"),
+    )
+    EVAL_EMBEDDING_API_KEY = os.getenv(
+        "EVAL_EMBEDDING_API_KEY",
+        os.getenv("WATSON_NEW_EMBEDDING_API_KEY", ""),
+    )
+    EVAL_EMBEDDING_TRUNCATE_PROMPT_TOKENS = int(
+        os.getenv(
+            "EVAL_EMBEDDING_TRUNCATE_PROMPT_TOKENS",
+            os.getenv("WATSON_NEW_EMBEDDING_TRUNCATE_PROMPT_TOKENS", "256"),
+        )
+    )
+    EVAL_EMBEDDING_TIMEOUT_SECONDS = float(
+        os.getenv("EVAL_EMBEDDING_TIMEOUT_SECONDS", "120")
+    )
 
     @classmethod
     def set_schema(cls, schema: str):

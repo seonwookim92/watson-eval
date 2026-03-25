@@ -406,6 +406,12 @@ class OntologyExtractorPipeline:
         trace_payload.pop("event", None)
         self._trace_event(event, **trace_payload)
 
+    def _trace_mcp_event(self, payload: Dict[str, Any]) -> None:
+        event = str(payload.get("event", "mcp_roundtrip"))
+        trace_payload = dict(payload)
+        trace_payload.pop("event", None)
+        self._trace_event(event, **trace_payload)
+
     def _read_text(self, path: Path) -> str:
         return path.read_text(encoding="utf-8", errors="ignore")
 
@@ -2288,6 +2294,7 @@ class OntologyExtractorPipeline:
                     mcp, row["object"], object_context
                 )
             pred_uri, predicate_is_inverse, object_is_literal = self._match_predicate_uri(
+                mcp,
                 row,
                 subj_class_uri,
                 obj_class_uri,
@@ -2297,6 +2304,7 @@ class OntologyExtractorPipeline:
                 mcp, row["object"], object_context
             )
             pred_uri, predicate_is_inverse, object_is_literal = self._match_predicate_uri(
+                mcp,
                 row,
                 subj_class_uri,
                 obj_class_uri,
@@ -2429,6 +2437,7 @@ class OntologyExtractorPipeline:
                 property_recommender_base_url=str(self.config["llm"].get("base_url", "")),
                 property_recommender_model=str(self.config["llm"].get("model", "")),
                 property_recommender_api_key=os.getenv("OPENAI_API_KEY", ""),
+                tracer=self._trace_mcp_event,
             )
         except Exception as e:
             self._log(logging.ERROR, "[7] MCP client creation failed: %s", e)
@@ -2688,6 +2697,7 @@ class OntologyExtractorPipeline:
 
     def _check_is_literal(
         self,
+        mcp: MCPStdioClient,
         subject: str,
         row_id: Any,
         subject_class_uri: str,
@@ -2707,6 +2717,7 @@ class OntologyExtractorPipeline:
         result = (False, "")
         for _ in range(3):
             parsed = self._run_property_agent_with_temp_entities(
+                mcp=mcp,
                 subject_class_uri=subject_class_uri,
                 object_class_uri="",
                 prompt_factory=lambda transcript, remaining, temp_subject_uri, temp_object_uri, force_finish=False, feedback=validation_feedback: data_property_resolution_agent_prompt(
@@ -2849,37 +2860,33 @@ class OntologyExtractorPipeline:
 
     def _recommend_property_candidates(
         self,
+        mcp: MCPStdioClient,
         row: Dict[str, Any],
         subject_class_uri: str,
         object_class_uri: str,
     ) -> Tuple[bool, List[Dict[str, Any]]]:
-        mcp = self._try_create_mcp()
-        if mcp is None:
-            return False, []
-
         try:
-            with mcp:
-                payload = self._call_mcp_tool_structured(
-                    mcp,
-                    "recommend_property",
-                    {
-                        "subject_type_uri": subject_class_uri,
-                        "object_type_uri": object_class_uri,
-                        "predicate": row["predicate"],
-                        "context": row["source_sentence"],
-                    },
-                    "property_matching",
-                    trace_context={
-                        "match_kind": "relationship_type_matching",
-                        "property_mode": "recommend_property",
-                        "row_id": row["id"],
-                        "subject": row["subject"],
-                        "subject_class_uri": subject_class_uri,
-                        "predicate": row["predicate"],
-                        "object": row["object"],
-                        "object_class_uri": object_class_uri,
-                    },
-                )
+            payload = self._call_mcp_tool_structured(
+                mcp,
+                "recommend_property",
+                {
+                    "subject_type_uri": subject_class_uri,
+                    "object_type_uri": object_class_uri,
+                    "predicate": row["predicate"],
+                    "context": row["source_sentence"],
+                },
+                "property_matching",
+                trace_context={
+                    "match_kind": "relationship_type_matching",
+                    "property_mode": "recommend_property",
+                    "row_id": row["id"],
+                    "subject": row["subject"],
+                    "subject_class_uri": subject_class_uri,
+                    "predicate": row["predicate"],
+                    "object": row["object"],
+                    "object_class_uri": object_class_uri,
+                },
+            )
         except Exception as e:
             self._log(
                 logging.WARNING,
@@ -2925,13 +2932,10 @@ class OntologyExtractorPipeline:
 
     def _recommend_attribute_candidates(
         self,
+        mcp: MCPStdioClient,
         row: Dict[str, Any],
         subject_class_uri: str,
     ) -> Tuple[bool, List[Dict[str, Any]]]:
-        mcp = self._try_create_mcp()
-        if mcp is None:
-            return False, []
-
         subject_entity_id = self._temp_mcp_entity_id(row["id"], "subject")
         temp_subject_uri = self._temp_mcp_entity_uri(subject_entity_id)
         trace_context = {
@@ -2947,26 +2951,25 @@ class OntologyExtractorPipeline:
         }
 
         try:
-            with mcp:
-                self._call_mcp_tool(
-                    mcp,
-                    "create_entity",
-                    {"entity_id": subject_entity_id, "class_uris": [subject_class_uri]},
-                    "property_matching",
-                    trace_context=trace_context,
-                )
-                raw = self._call_mcp_tool(
-                    mcp,
-                    "recommend_attribute",
-                    {
-                        "entity_uri": temp_subject_uri,
-                        "query": row["predicate"],
-                        "value": row["object"],
-                        "context": row["source_sentence"],
-                    },
-                    "property_matching",
-                    trace_context=trace_context,
-                )
+            self._call_mcp_tool(
+                mcp,
+                "create_entity",
+                {"entity_id": subject_entity_id, "class_uris": [subject_class_uri]},
+                "property_matching",
+                trace_context=trace_context,
+            )
+            raw = self._call_mcp_tool(
+                mcp,
+                "recommend_attribute",
+                {
+                    "entity_uri": temp_subject_uri,
+                    "query": row["predicate"],
+                    "value": row["object"],
+                    "context": row["source_sentence"],
+                },
+                "property_matching",
+                trace_context=trace_context,
+            )
         except Exception as e:
             self._log(
                 logging.WARNING,
@@ -2980,6 +2983,7 @@ class OntologyExtractorPipeline:
 
     def _match_predicate_uri(
         self,
+        mcp: MCPStdioClient,
         row: Dict[str, Any],
         subject_class_uri: str,
         object_class_uri: str,
@@ -3006,7 +3010,7 @@ class OntologyExtractorPipeline:
             return final
 
         if object_class_uri:
-            ok, candidates = self._recommend_property_candidates(row, subject_class_uri, object_class_uri)
+            ok, candidates = self._recommend_property_candidates(mcp, row, subject_class_uri, object_class_uri)
             if ok and candidates:
                 result, is_inverse, is_data_property = self._judge_predicate_candidates(
                     row=row,
@@ -3015,7 +3019,7 @@ class OntologyExtractorPipeline:
                     candidates=candidates,
                 )
         else:
-            ok, candidates = self._recommend_attribute_candidates(row, subject_class_uri)
+            ok, candidates = self._recommend_attribute_candidates(mcp, row, subject_class_uri)
             if ok and candidates:
                 result, is_inverse, is_data_property = self._judge_predicate_candidates(
                     row=row,
@@ -3333,6 +3337,7 @@ class OntologyExtractorPipeline:
 
     def _run_property_agent_with_temp_entities(
         self,
+        mcp: MCPStdioClient,
         subject_class_uri: str,
         object_class_uri: str,
         prompt_factory: Any,
@@ -3347,9 +3352,6 @@ class OntologyExtractorPipeline:
             return {}
         if object_entity_id and not object_class_uri:
             return {}
-        mcp = self._try_create_mcp()
-        if mcp is None:
-            return {}
 
         temp_subject_uri = self._temp_mcp_entity_uri(subject_entity_id)
         temp_object_uri = self._temp_mcp_entity_uri(object_entity_id) if object_entity_id else ""
@@ -3361,36 +3363,35 @@ class OntologyExtractorPipeline:
             **(trace_context or {}),
         }
         try:
-            with mcp:
+            self._call_mcp_tool(
+                mcp,
+                "create_entity",
+                {"entity_id": subject_entity_id, "class_uris": [subject_class_uri]},
+                counter_key,
+                trace_context=setup_trace,
+            )
+            if object_entity_id and object_class_uri:
                 self._call_mcp_tool(
                     mcp,
                     "create_entity",
-                    {"entity_id": subject_entity_id, "class_uris": [subject_class_uri]},
+                    {"entity_id": object_entity_id, "class_uris": [object_class_uri]},
                     counter_key,
                     trace_context=setup_trace,
                 )
-                if object_entity_id and object_class_uri:
-                    self._call_mcp_tool(
-                        mcp,
-                        "create_entity",
-                        {"entity_id": object_entity_id, "class_uris": [object_class_uri]},
-                        counter_key,
-                        trace_context=setup_trace,
-                    )
-                return self._run_mcp_agent_loop(
-                    mcp=mcp,
-                    prompt_factory=lambda transcript, remaining, force_finish=False: prompt_factory(
-                        transcript,
-                        remaining,
-                        temp_subject_uri,
-                        temp_object_uri,
-                        force_finish,
-                    ),
-                    allowed_tools=allowed_tools,
-                    max_calls=max_calls,
-                    counter_key=counter_key,
-                    trace_context=setup_trace,
-                )
+            return self._run_mcp_agent_loop(
+                mcp=mcp,
+                prompt_factory=lambda transcript, remaining, force_finish=False: prompt_factory(
+                    transcript,
+                    remaining,
+                    temp_subject_uri,
+                    temp_object_uri,
+                    force_finish,
+                ),
+                allowed_tools=allowed_tools,
+                max_calls=max_calls,
+                counter_key=counter_key,
+                trace_context=setup_trace,
+            )
         except Exception as e:
             self._log(logging.ERROR, "[MCP-Agent][%s] temporary graph setup failed: %s", counter_key, e)
             return {}

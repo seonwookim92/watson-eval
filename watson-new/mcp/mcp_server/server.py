@@ -1,4 +1,7 @@
+import functools
 import json
+import sys
+import time
 import urllib.error
 import uuid
 import rdflib
@@ -103,6 +106,56 @@ def _extract_json_array(raw_text: str) -> str:
     return text[start:end + 1]
 
 
+def _sanitize_timing_value(value: Any) -> Any:
+    if isinstance(value, (str, int, float, bool)) or value is None:
+        return value
+    if isinstance(value, dict):
+        return {str(k): _sanitize_timing_value(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_sanitize_timing_value(item) for item in value]
+    return str(value)
+
+
+def _emit_timing_event(event: str, **payload: Any) -> None:
+    record = {
+        "event": event,
+        **{key: _sanitize_timing_value(value) for key, value in payload.items()},
+    }
+    sys.stderr.write("MCP_TIMING " + json.dumps(record, ensure_ascii=False) + "\n")
+    sys.stderr.flush()
+
+
+def _timed_tool(tool_name: str):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            started_at = time.perf_counter()
+            try:
+                result = func(*args, **kwargs)
+                duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+                _emit_timing_event(
+                    "mcp_server_tool_timing",
+                    tool=tool_name,
+                    status="ok",
+                    duration_ms=duration_ms,
+                )
+                return result
+            except Exception as exc:
+                duration_ms = round((time.perf_counter() - started_at) * 1000, 3)
+                _emit_timing_event(
+                    "mcp_server_tool_timing",
+                    tool=tool_name,
+                    status="error",
+                    duration_ms=duration_ms,
+                    error=str(exc),
+                )
+                raise
+
+        return wrapper
+
+    return decorator
+
+
 def _call_property_recommender_llm(messages: list[dict[str, str]]) -> str:
     if not PROPERTY_RECOMMENDER_MODEL:
         raise RuntimeError("PROPERTY_RECOMMENDER_MODEL is not configured.")
@@ -124,19 +177,52 @@ def _call_property_recommender_llm(messages: list[dict[str, str]]) -> str:
         method="POST",
     )
 
+    started_at = time.perf_counter()
     try:
         with urllib.request.urlopen(request, timeout=PROPERTY_RECOMMENDER_TIMEOUT_SECONDS) as response:
             body = json.loads(response.read().decode("utf-8"))
     except urllib.error.HTTPError as exc:
+        _emit_timing_event(
+            "mcp_server_llm_roundtrip",
+            operation="recommend_property_llm",
+            model=PROPERTY_RECOMMENDER_MODEL,
+            duration_ms=round((time.perf_counter() - started_at) * 1000, 3),
+            status="http_error",
+            error=f"HTTP {exc.code}",
+        )
         detail = exc.read().decode("utf-8", errors="replace")
         raise RuntimeError(f"LLM HTTP {exc.code}: {detail}") from exc
     except urllib.error.URLError as exc:
+        _emit_timing_event(
+            "mcp_server_llm_roundtrip",
+            operation="recommend_property_llm",
+            model=PROPERTY_RECOMMENDER_MODEL,
+            duration_ms=round((time.perf_counter() - started_at) * 1000, 3),
+            status="url_error",
+            error=str(exc.reason),
+        )
         raise RuntimeError(f"LLM request failed: {exc.reason}") from exc
 
     try:
         content = body["choices"][0]["message"]["content"]
     except (KeyError, IndexError, TypeError) as exc:
+        _emit_timing_event(
+            "mcp_server_llm_roundtrip",
+            operation="recommend_property_llm",
+            model=PROPERTY_RECOMMENDER_MODEL,
+            duration_ms=round((time.perf_counter() - started_at) * 1000, 3),
+            status="invalid_payload",
+            error="Unexpected response payload",
+        )
         raise RuntimeError(f"Unexpected LLM response payload: {body}") from exc
+
+    _emit_timing_event(
+        "mcp_server_llm_roundtrip",
+        operation="recommend_property_llm",
+        model=PROPERTY_RECOMMENDER_MODEL,
+        duration_ms=round((time.perf_counter() - started_at) * 1000, 3),
+        status="ok",
+    )
 
     return _extract_text_content(content)
 
@@ -300,6 +386,7 @@ def _validate_recommend_property_result(
 # --- [Schema Inspection Tools] ---
 
 @mcp.tool()
+@_timed_tool("list_root_classes")
 def list_root_classes() -> str:
     """Lists the top-level classes in the ontology (those with no parents)."""
     roots = []
@@ -309,6 +396,7 @@ def list_root_classes() -> str:
     return "\n".join(sorted(roots)) or "No root classes found."
 
 @mcp.tool()
+@_timed_tool("list_subclasses")
 def list_subclasses(class_uri: str) -> str:
     """Lists the immediate subclasses of a given class."""
     if class_uri not in engine.classes: return "Error: Class not found."
@@ -320,6 +408,7 @@ def list_subclasses(class_uri: str) -> str:
     return "\n".join(sorted(result)) or "No subclasses found."
 
 @mcp.tool()
+@_timed_tool("drill_into_classes")
 def drill_into_classes(query: str, class_uri: str = None) -> str:
     """LLM-driven hierarchical class finder. Use this when search_classes scores are all below 0.5
     or the top result doesn't clearly match your concept.
@@ -385,6 +474,7 @@ def drill_into_classes(query: str, class_uri: str = None) -> str:
 
 
 @mcp.tool()
+@_timed_tool("show_class_tree")
 def show_class_tree(class_uri: str = None, depth: int = 2) -> str:
     """Displays the class hierarchy as an indented tree (read-only, no navigation).
 
@@ -443,6 +533,7 @@ def show_class_tree(class_uri: str = None, depth: int = 2) -> str:
     return "\n".join(lines)
 
 @mcp.tool()
+@_timed_tool("get_class_hierarchy")
 def get_class_hierarchy(class_uri: str) -> str:
     """Returns the inheritance path from the root to the specified class."""
     if class_uri not in engine.classes: return f"Class {class_uri} not found."
@@ -458,6 +549,7 @@ def get_class_hierarchy(class_uri: str) -> str:
     return " -> ".join([engine.classes[u]['name'] for u in reversed(path) if u in engine.classes])
 
 @mcp.tool()
+@_timed_tool("search_classes")
 def search_classes(query: str, limit: int = 8) -> str:
     """Search for classes using Hybrid Search (Keyword + Semantic Embeddings).
 
@@ -492,6 +584,7 @@ def search_classes(query: str, limit: int = 8) -> str:
     return "\n".join(res)
 
 @mcp.tool()
+@_timed_tool("search_properties")
 def search_properties(query: str) -> str:
     """Searches for properties by keyword or semantic embedding.
 
@@ -538,6 +631,7 @@ def search_properties(query: str) -> str:
     return "\n".join(final)
 
 @mcp.tool()
+@_timed_tool("recommend_attribute")
 def recommend_attribute(entity_uri: str, query: str, value: str = None, context: str = None) -> str:
     """
     Recommends the best DatatypeProperty to set on an entity. Call this for EVERY literal
@@ -612,6 +706,7 @@ def recommend_attribute(entity_uri: str, query: str, value: str = None, context:
     return "\n".join(res)
 
 @mcp.tool()
+@_timed_tool("recommend_relation")
 def recommend_relation(subject_uri: str, object_uri: str, query: str, context: str = None) -> str:
     """
     Recommends the best ObjectProperty to link two entities. Call this for EVERY relationship
@@ -686,6 +781,7 @@ def recommend_relation(subject_uri: str, object_uri: str, query: str, context: s
 
 
 @mcp.tool(structured_output=True)
+@_timed_tool("recommend_property")
 def recommend_property(
     subject_type_uri: str,
     object_type_uri: str,
@@ -752,6 +848,7 @@ def recommend_property(
     return RecommendPropertyResponse(isSuccess=False, result=[])
 
 @mcp.tool()
+@_timed_tool("get_ontology_summary")
 def get_ontology_summary() -> str:
     """
     Returns a high-level summary of the loaded ontology.
@@ -782,6 +879,7 @@ Action Recommended: Use `list_root_classes` to begin navigation or `search_class
 """
 
 @mcp.tool()
+@_timed_tool("list_available_facets")
 def list_available_facets(class_uri: str) -> str:
     """
     Lists all Facets/Components applicable to a given class.
@@ -819,6 +917,7 @@ def list_available_facets(class_uri: str) -> str:
     return "\n".join(res)
 
 @mcp.tool()
+@_timed_tool("get_class_details")
 def get_class_details(class_uri: str) -> str:
     """Retrieves schema, hierarchy and connectivity guidance for a class."""
     if class_uri not in engine.classes: return "Error: Class not found."
@@ -851,6 +950,7 @@ def get_class_details(class_uri: str) -> str:
 # --- [Entity Manipulation Tools] ---
 
 @mcp.tool()
+@_timed_tool("create_entity")
 def create_entity(entity_id: str, class_uris: list[str]) -> str:
     """Creates a multi-typed entity. Base classes must exist in the loaded ontology."""
     safe_id = urllib.parse.quote(str(entity_id).replace(" ", "_"))
@@ -898,6 +998,7 @@ def create_entity(entity_id: str, class_uris: list[str]) -> str:
     return "\n".join(lines)
 
 @mcp.tool()
+@_timed_tool("remove_entity")
 def remove_entity(entity_uri: str) -> str:
     """Deletes an entity and all its associated links (incoming and outgoing)."""
     subj = rdflib.URIRef(entity_uri)
@@ -906,6 +1007,7 @@ def remove_entity(entity_uri: str) -> str:
     return f"Success: Removed {entity_uri} from the graph."
 
 @mcp.tool()
+@_timed_tool("reset_graph")
 def reset_graph() -> str:
     """Resets the knowledge graph (removes all instances) but keeps the ontology schema."""
     engine.graph = rdflib.Graph()
@@ -914,6 +1016,7 @@ def reset_graph() -> str:
 
 
 @mcp.tool()
+@_timed_tool("set_property")
 def set_property(entity_uri: str, property_uri: str, value: str) -> str:
 
     """
@@ -939,6 +1042,7 @@ def set_property(entity_uri: str, property_uri: str, value: str) -> str:
     return f"Success: {entity_uri} --({property_uri})--> {value}"
 
 @mcp.tool()
+@_timed_tool("attach_component")
 def attach_component(entity_uri: str, component_class: str, connection_prop: str, attributes: dict) -> str:
 
     """
@@ -962,6 +1066,7 @@ def attach_component(entity_uri: str, component_class: str, connection_prop: str
     return f"Success: Attached {component_class} to {entity_uri}. Component URI: {comp_uri}"
 
 @mcp.tool()
+@_timed_tool("visualize_graph")
 def visualize_graph(verbose: bool = False) -> str:
     """
     Returns a text-based (ASCII tree) visualization of the current session's graph.
@@ -1004,6 +1109,7 @@ def visualize_graph(verbose: bool = False) -> str:
     return "\n".join(output)
 
 @mcp.tool()
+@_timed_tool("get_graph_data")
 def get_graph_data() -> str:
     """Returns the current knowledge graph as a JSON string containing nodes and edges."""
     import json
@@ -1059,6 +1165,7 @@ def get_graph_data() -> str:
 
 
 @mcp.tool()
+@_timed_tool("get_raw_triplets")
 def get_raw_triplets() -> str:
     """Debug tool: returns ALL triplets in the graph as text."""
     res = []
@@ -1068,6 +1175,7 @@ def get_raw_triplets() -> str:
 
 
 @mcp.tool()
+@_timed_tool("prune_islands")
 def prune_islands(min_size: int = 1) -> str:
     """
     Removes disconnected 'islands' (small clusters of entities) from the graph.
@@ -1121,6 +1229,7 @@ def prune_islands(min_size: int = 1) -> str:
 
 
 @mcp.tool()
+@_timed_tool("validate_entity")
 def validate_entity(entity_uri: str) -> str:
     """Validates entity against SHACL constraints. Returns structured JSON."""
     subj = rdflib.URIRef(entity_uri)
@@ -1195,6 +1304,7 @@ def validate_entity(entity_uri: str) -> str:
     return json.dumps({"valid": False, "entity": entity_uri, "error_count": len(errors), "errors": errors}, indent=2)
 
 @mcp.tool()
+@_timed_tool("export_graph")
 def export_graph(filename: str = "knowledge_graph.ttl") -> str:
     """Exports all instance data to a Turtle file. Fails if invalid URIs exist."""
     output = rdflib.Graph()
