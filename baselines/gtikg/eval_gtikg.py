@@ -61,6 +61,11 @@ def extract_triples_gtikg(text, model="gpt-4o-mini", provider="openai"):
             if openai_base_url:
                 completion_kwargs["api_base"] = openai_base_url
                 completion_kwargs["api_key"] = os.getenv("OPENAI_API_KEY", "dummy")
+            # vLLM/Qwen OpenAI-compatible endpoints can emit reasoning-only output
+            # unless thinking is explicitly disabled.
+            completion_kwargs["extra_body"] = {
+                "chat_template_kwargs": {"enable_thinking": False}
+            }
         elif provider == "ollama":
             completion_kwargs["api_base"] = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434")
 
