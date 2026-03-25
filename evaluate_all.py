@@ -52,11 +52,11 @@ TASKS = [
 ]
 
 
-def build_cmd(script: Path, task_name: str, args: argparse.Namespace, out_dir: Path) -> list[str]:
+def build_cmd(script: Path, task_name: str, args: argparse.Namespace, output_path: Path) -> list[str]:
     cmd = [sys.executable, str(script)]
     cmd += ["--results",      args.results]
     cmd += ["--ground-truth", args.ground_truth]
-    cmd += ["--output",       str(out_dir)]
+    cmd += ["--output",       str(output_path)]
     if args.ontology:
         cmd += ["--ontology", args.ontology]
     if args.llm_provider:
@@ -76,6 +76,13 @@ def build_cmd(script: Path, task_name: str, args: argparse.Namespace, out_dir: P
     if task_name in ("triple-extraction", "triple-typing") and args.include_implicit:
         cmd.append("--include-implicit")
     return cmd
+
+
+def resolve_task_output(task_prefix: str, args: argparse.Namespace, out_dir: Path) -> Path:
+    results_path = Path(args.results)
+    if results_path.is_dir():
+        return out_dir
+    return out_dir / f"{task_prefix}{_results_key(results_path)}.json"
 
 
 def _results_key(filepath: Path) -> str:
@@ -288,7 +295,9 @@ def main() -> None:
     run_results: list[tuple[str, int, int]] = []  # (name, returncode, elapsed_s)
 
     for task_name, script_path, _ in tasks_to_run:
-        cmd = build_cmd(script_path, task_name, args, out_dir)
+        task_prefix = next(prefix for name, _, prefix in TASKS if name == task_name)
+        task_output = resolve_task_output(task_prefix, args, out_dir)
+        cmd = build_cmd(script_path, task_name, args, task_output)
         started = datetime.now()
 
         print(f"\n{'─'*60}")

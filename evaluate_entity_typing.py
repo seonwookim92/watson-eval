@@ -237,27 +237,26 @@ def _count_entity_type_hier_stats(
 # ── LLM helpers ───────────────────────────────────────────────────────────────
 
 def _build_llm(provider: str, model: str, base_url: str = None):
-    if provider == "openai":
-        from langchain_openai import ChatOpenAI
-        kwargs = {"model": model, "api_key": os.getenv("OPENAI_API_KEY", "dummy"), "temperature": 0,
-                  "model_kwargs": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}}
-        if base_url: kwargs["base_url"] = base_url
-        return ChatOpenAI(**kwargs)
-    elif provider == "gemini":
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(model=model, google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
-    elif provider in ("claude", "anthropic"):
-        from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(model=model, anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"), temperature=0)
-    else:
-        from langchain_ollama import ChatOllama
-        return ChatOllama(model=model,
-                          base_url=base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-                          temperature=0)
+    from core.eval.llm_backend import build_llm_judge
+
+    return build_llm_judge(provider, model, base_url)
 
 
-async def _llm_batch_match_entities(preds: List[str], golds: List[str], llm, timeout: float = 180.0) -> List[Tuple[int, int]]:
-    from langchain_core.messages import SystemMessage, HumanMessage
+def _llm_retry_messages(prompt: str, last_error: Optional[str] = None) -> List[dict]:
+    retry_note = ""
+    if last_error:
+        retry_note = (
+            "\n\nThe previous response could not be used because of this error:\n"
+            f"{last_error}\n\n"
+            "Fix that issue and reply again. Output only valid JSON matching the requested schema."
+        )
+    return [
+        {"role": "system", "content": "Precise semantic evaluation assistant. Output only valid JSON."},
+        {"role": "user", "content": f"{prompt}{retry_note}"},
+    ]
+
+
+async def _llm_batch_match_entities(preds: List[str], golds: List[str], llm, timeout: float = 180.0, max_retries: int = 3) -> List[Tuple[int, int]]:
     if not preds or not golds: return []
     pred_lines = "\n".join(f"{i+1}. {x}" for i, x in enumerate(preds))
     gold_lines = "\n".join(f"{j+1}. {x}" for j, x in enumerate(golds))
@@ -269,28 +268,29 @@ async def _llm_batch_match_entities(preds: List[str], golds: List[str], llm, tim
         f"Predicted:\n{pred_lines}\n\nGold:\n{gold_lines}\n\n"
         'Output JSON: [{"pred": <1-indexed>, "gold": <1-indexed>}, ...] or []'
     )
-    try:
-        resp = await asyncio.wait_for(
-            llm.ainvoke([
-                SystemMessage(content="Precise semantic evaluation assistant. Output only valid JSON."),
-                HumanMessage(content=prompt),
-            ]),
-            timeout=timeout,
-        )
-    except asyncio.TimeoutError:
-        print(f"  [!] LLM timeout ({timeout:.0f}s) for entity matching — returning []", flush=True)
-        return []
-    try:
-        m = re.search(r'\[.*?\]', resp.content, re.DOTALL)
-        if not m: return []
-        pairs = [
-            (int(d["pred"]) - 1, int(d["gold"]) - 1)
-            for d in json.loads(m.group(0))
-            if "pred" in d and "gold" in d and d["pred"] is not None and d["gold"] is not None
-        ]
-        return [(pi, gj) for pi, gj in pairs if 0 <= pi < len(preds) and 0 <= gj < len(golds)]
-    except Exception:
-        return []
+    last_error: Optional[str] = None
+    for attempt in range(max_retries):
+        messages = _llm_retry_messages(prompt, last_error)
+        try:
+            resp = await asyncio.wait_for(llm.ainvoke(messages), timeout=timeout)
+            m = re.search(r'\[.*?\]', resp.content, re.DOTALL)
+            if not m:
+                raise ValueError("no JSON array in LLM response")
+            pairs = [
+                (int(d["pred"]) - 1, int(d["gold"]) - 1)
+                for d in json.loads(m.group(0))
+                if "pred" in d and "gold" in d and d["pred"] is not None and d["gold"] is not None
+            ]
+            return [(pi, gj) for pi, gj in pairs if 0 <= pi < len(preds) and 0 <= gj < len(golds)]
+        except asyncio.TimeoutError:
+            last_error = f"timed out after {timeout:.0f}s while waiting for a valid JSON array response"
+            print(f"  [!] LLM timeout ({timeout:.0f}s) for entity matching (attempt {attempt + 1}/{max_retries})", flush=True)
+        except Exception as e:
+            last_error = re.sub(r"\s+", " ", str(e)).strip()
+            print(f"  [!] LLM error for entity matching (attempt {attempt + 1}/{max_retries}): {e}", flush=True)
+        if attempt < max_retries - 1:
+            await asyncio.sleep(2)
+    return []
 
 
 def _count_llm_tp(pairs: List[Tuple[int, int]], n_pred: int, n_gold: int) -> int:

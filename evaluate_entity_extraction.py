@@ -77,12 +77,15 @@ SUPPORTED_ONTOLOGIES = {"uco", "malont", "stix"}
 def _load_ctinexus_typed(gt_dir: str) -> dict:
     path = Path(gt_dir)
     if path.is_file():
-        typed = path if path.stem.endswith("_typed") else path.with_name(f"{path.stem}_typed.json")
-        files = [typed]
+        files = [path]
     else:
-        files = sorted(path.glob("*_typed.json"))
+        plain_files = sorted(f for f in path.glob("*.json") if not f.stem.endswith("_typed"))
+        typed_files = sorted(path.glob("*_typed.json"))
+        plain_ids = {f.stem for f in plain_files}
+        typed_fallbacks = [f for f in typed_files if f.stem[:-6] not in plain_ids]
+        files = plain_files + typed_fallbacks
     if not files:
-        raise ValueError(f"No *_typed.json files found under: {gt_dir}")
+        raise ValueError(f"No GT JSON files found under: {gt_dir}")
 
     samples = {}
     for f in files:
@@ -113,11 +116,33 @@ def _resolve_ontology(item: dict, override: str = None) -> str:
 # ── Matchers ──────────────────────────────────────────────────────────────────
 
 class EmbeddingMatcher:
-    def __init__(self, threshold: float = 0.75, model_name: str = "all-MiniLM-L6-v2"):
-        from sentence_transformers import SentenceTransformer
+    def __init__(
+        self,
+        threshold: float = 0.75,
+        model_name: str = "all-MiniLM-L6-v2",
+        mode: str = "local",
+        base_url: str = "",
+        api_key: str = "",
+        truncate_prompt_tokens: int = 256,
+        timeout: float = 120,
+    ):
         import numpy as np
-        print(f"[emb] Loading '{model_name}'...", flush=True)
-        self.model     = SentenceTransformer(model_name)
+
+        from core.eval.embedding_backend import build_embedding_backend
+
+        self.mode = (mode or "local").strip().lower()
+        if self.mode == "remote":
+            print(f"[emb] Using remote backend '{model_name}' @ {base_url}", flush=True)
+        else:
+            print(f"[emb] Using local sentence-transformers '{model_name}'", flush=True)
+        self.backend   = build_embedding_backend(
+            mode=self.mode,
+            model_name=model_name,
+            base_url=base_url,
+            api_key=api_key,
+            truncate_prompt_tokens=truncate_prompt_tokens,
+            timeout=timeout,
+        )
         self.threshold = threshold
         self._np       = np
 
@@ -129,7 +154,7 @@ class EmbeddingMatcher:
     def score_matrix(self, preds: List[str], golds: List[str]) -> List[List[float]]:
         if not preds or not golds:
             return []
-        embs = self.model.encode(preds + golds, show_progress_bar=False)
+        embs = self.backend.encode(preds + golds)
         pe, ge = embs[:len(preds)], embs[len(preds):]
         return [[self._cos(p, g) for g in ge] for p in pe]
 
@@ -183,28 +208,26 @@ class JaccardMatcher:
 # ── LLM helpers ───────────────────────────────────────────────────────────────
 
 def _build_llm(provider: str, model: str, base_url: str = None):
-    if provider == "openai":
-        from langchain_openai import ChatOpenAI
-        kwargs = {"model": model, "api_key": os.getenv("OPENAI_API_KEY", "dummy"), "temperature": 0,
-                  "model_kwargs": {"extra_body": {"chat_template_kwargs": {"enable_thinking": False}}}}
-        if base_url:
-            kwargs["base_url"] = base_url
-        return ChatOpenAI(**kwargs)
-    elif provider == "gemini":
-        from langchain_google_genai import ChatGoogleGenerativeAI
-        return ChatGoogleGenerativeAI(model=model, google_api_key=os.getenv("GOOGLE_API_KEY"), temperature=0)
-    elif provider in ("claude", "anthropic"):
-        from langchain_anthropic import ChatAnthropic
-        return ChatAnthropic(model=model, anthropic_api_key=os.getenv("ANTHROPIC_API_KEY"), temperature=0)
-    else:
-        from langchain_ollama import ChatOllama
-        return ChatOllama(model=model,
-                          base_url=base_url or os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
-                          temperature=0)
+    from core.eval.llm_backend import build_llm_judge
+
+    return build_llm_judge(provider, model, base_url)
 
 
-async def _llm_batch_match_entities(preds: List[str], golds: List[str], llm, timeout: float = 180.0) -> List[Tuple[int, int]]:
-    from langchain_core.messages import SystemMessage, HumanMessage
+def _llm_retry_messages(prompt: str, last_error: Optional[str] = None) -> List[dict]:
+    retry_note = ""
+    if last_error:
+        retry_note = (
+            "\n\nThe previous response could not be used because of this error:\n"
+            f"{last_error}\n\n"
+            "Fix that issue and reply again. Output only valid JSON matching the requested schema."
+        )
+    return [
+        {"role": "system", "content": "Precise semantic evaluation assistant. Output only valid JSON."},
+        {"role": "user", "content": f"{prompt}{retry_note}"},
+    ]
+
+
+async def _llm_batch_match_entities(preds: List[str], golds: List[str], llm, timeout: float = 180.0, max_retries: int = 3) -> List[Tuple[int, int]]:
     if not preds or not golds:
         return []
     pred_lines = "\n".join(f"{i+1}. {x}" for i, x in enumerate(preds))
@@ -217,29 +240,29 @@ async def _llm_batch_match_entities(preds: List[str], golds: List[str], llm, tim
         f"Predicted:\n{pred_lines}\n\nGold:\n{gold_lines}\n\n"
         'Output JSON: [{"pred": <1-indexed>, "gold": <1-indexed>}, ...] or []'
     )
-    try:
-        resp = await asyncio.wait_for(
-            llm.ainvoke([
-                SystemMessage(content="Precise semantic evaluation assistant. Output only valid JSON."),
-                HumanMessage(content=prompt),
-            ]),
-            timeout=timeout,
-        )
-    except asyncio.TimeoutError:
-        print(f"  [!] LLM timeout ({timeout:.0f}s) for entity matching — returning []", flush=True)
-        return []
-    try:
-        m = re.search(r'\[.*?\]', resp.content, re.DOTALL)
-        if not m:
-            return []
-        pairs = [
-            (int(d["pred"]) - 1, int(d["gold"]) - 1)
-            for d in json.loads(m.group(0))
-            if "pred" in d and "gold" in d and d["pred"] is not None and d["gold"] is not None
-        ]
-        return [(pi, gj) for pi, gj in pairs if 0 <= pi < len(preds) and 0 <= gj < len(golds)]
-    except Exception:
-        return []
+    last_error: Optional[str] = None
+    for attempt in range(max_retries):
+        messages = _llm_retry_messages(prompt, last_error)
+        try:
+            resp = await asyncio.wait_for(llm.ainvoke(messages), timeout=timeout)
+            m = re.search(r'\[.*?\]', resp.content, re.DOTALL)
+            if not m:
+                raise ValueError("no JSON array in LLM response")
+            pairs = [
+                (int(d["pred"]) - 1, int(d["gold"]) - 1)
+                for d in json.loads(m.group(0))
+                if "pred" in d and "gold" in d and d["pred"] is not None and d["gold"] is not None
+            ]
+            return [(pi, gj) for pi, gj in pairs if 0 <= pi < len(preds) and 0 <= gj < len(golds)]
+        except asyncio.TimeoutError:
+            last_error = f"timed out after {timeout:.0f}s while waiting for a valid JSON array response"
+            print(f"  [!] LLM timeout ({timeout:.0f}s) for entity matching (attempt {attempt + 1}/{max_retries})", flush=True)
+        except Exception as e:
+            last_error = re.sub(r"\s+", " ", str(e)).strip()
+            print(f"  [!] LLM error for entity matching (attempt {attempt + 1}/{max_retries}): {e}", flush=True)
+        if attempt < max_retries - 1:
+            await asyncio.sleep(2)
+    return []
 
 
 def _count_llm_tp(pairs: List[Tuple[int, int]], n_pred: int, n_gold: int) -> int:
@@ -542,6 +565,11 @@ async def main() -> None:
     parser.add_argument("--llm-provider",  default=None)
     parser.add_argument("--llm-model",     default=None)
     parser.add_argument("--llm-base-url",  default=None)
+    parser.add_argument("--embedding-mode", default=None, choices=["local", "remote"],
+                        help="Embedding backend mode")
+    parser.add_argument("--embedding-model", default=None, help="Embedding model name")
+    parser.add_argument("--embedding-base-url", default=None, help="Remote embedding base URL")
+    parser.add_argument("--embedding-api-key", default=None, help="Remote embedding API key")
     parser.add_argument("--llm-timeout",   type=float, default=180.0,
                         help="Timeout in seconds per LLM call (default: 180)")
     parser.add_argument("--hitl",          action="store_true", help="Human-in-the-loop review")
@@ -555,6 +583,10 @@ async def main() -> None:
     llm_model    = args.llm_model    or config.EVAL_LLM_MODEL
     llm_base_url = args.llm_base_url or config.EVAL_LLM_BASE_URL
     llm_tag      = f"{llm_provider}/{llm_model}"
+    emb_mode     = args.embedding_mode or config.EVAL_EMBEDDING_MODE
+    emb_model    = args.embedding_model or config.EVAL_EMBEDDING_MODEL
+    emb_base_url = args.embedding_base_url or config.EVAL_EMBEDDING_BASE_URL
+    emb_api_key  = args.embedding_api_key if args.embedding_api_key is not None else config.EVAL_EMBEDDING_API_KEY
 
     results_path = Path(args.results)
     if results_path.is_dir():
@@ -575,6 +607,9 @@ async def main() -> None:
     print(f"[*] Ground truth : {args.ground_truth}")
     print(f"[*] Emb threshold: {args.emb_threshold}")
     print(f"[*] Jac threshold: {args.jac_threshold}")
+    print(f"[*] Emb backend  : {emb_mode}/{emb_model}")
+    if emb_mode == "remote" and emb_base_url:
+        print(f"[*] Emb endpoint : {emb_base_url}")
     print(f"[*] LLM judge    : {llm_tag}")
     if llm_base_url:
         print(f"[*] LLM endpoint : {llm_base_url}")
@@ -584,7 +619,15 @@ async def main() -> None:
 
     gt_map = _load_ctinexus_typed(args.ground_truth)
     jac    = JaccardMatcher(threshold=args.jac_threshold)
-    emb    = EmbeddingMatcher(threshold=args.emb_threshold)
+    emb    = EmbeddingMatcher(
+        threshold=args.emb_threshold,
+        model_name=emb_model,
+        mode=emb_mode,
+        base_url=emb_base_url,
+        api_key=emb_api_key,
+        truncate_prompt_tokens=config.EVAL_EMBEDDING_TRUNCATE_PROMPT_TOKENS,
+        timeout=config.EVAL_EMBEDDING_TIMEOUT_SECONDS,
+    )
     llm    = _build_llm(llm_provider, llm_model, llm_base_url)
 
     all_summaries: List[dict] = []
